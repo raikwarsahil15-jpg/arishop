@@ -3,7 +3,6 @@
     "name": "arishop",
     "slug": "arishop",
     "version": "1.0.0",
-    "sdkVersion": "51.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
@@ -20,10 +19,6 @@
       "eas": {
         "projectId": "082ff27c-d2d1-44c0-a523-08145882a654"
       }
-    },
-    "platforms": [
-      "ios",
-      "android"
-    ]
+    }
   }
 }
