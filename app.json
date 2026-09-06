@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": "true"
+      "supportsTablet": true
     },
     "android": {
       "package": "com.sahilraikwar.arishop",
@@ -25,6 +25,7 @@
     "web": {
       "bundler": "metro"
     },
+    "owner": "sahilraikwars-team",
     "extra": {
       "eas": {
         "projectId": "082ff27c-d2d1-44c0-a523-08145882a654"
