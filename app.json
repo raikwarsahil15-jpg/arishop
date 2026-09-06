@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": "true"
     },
     "android": {
       "package": "com.sahilraikwar.arishop",
@@ -27,8 +27,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": "8d1adb33-875f-46d3-9bc2-3c87f185ef30"
+        "projectId": "082ff27c-d2d1-44c0-a523-08145882a654"
       }
-    }
+    },
+    "platforms": [
+      "ios",
+      "android"
+    ]
   }
 }
