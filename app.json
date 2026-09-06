@@ -5,19 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0f172a"
-    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "package": "com.sahilraikwar.arishop",
-      "adaptiveIcon": {
-        "backgroundColor": "#1b4332"
-      }
+      "package": "com.sahilraikwar.arishop"
     },
     "web": {
       "bundler": "metro"
