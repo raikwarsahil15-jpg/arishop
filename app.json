@@ -3,13 +3,21 @@
     "name": "AriShop",
     "slug": "arishop",
     "version": "1.0.0",
-    "android": {
-      "package": "com.arishop.kdgamer"
-    },
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
+    },
+    "android": {
+      "package": "com.arishop.kdgamer"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "यहाँ-अपनी-एक्चुअल-प्रोजेक्ट-आईडी-डालें"
+      }
     }
   }
 }
