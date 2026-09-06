@@ -1,24 +1,15 @@
 {
   "expo": {
-    "name": "arishop",
+    "name": "AriShop",
     "slug": "arishop",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
-    },
     "android": {
-      "package": "com.sahilraikwar.arishop"
+      "package": "com.arishop.kdgamer"
     },
-    "web": {
-      "bundler": "metro"
-    },
-    "owner": "sahilraikwars-team",
-    "extra": {
-      "eas": {
-        "projectId": "082ff27c-d2d1-44c0-a523-08145882a654"
-      }
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     }
   }
 }
