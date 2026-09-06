@@ -1,18 +1,28 @@
 {
-  "cli": {
-    "version": ">= 0.52.0"
-  },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
+  "expo": {
+    "name": "AriShop",
+    "slug": "arishop",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
-    "preview": {
-      "distribution": "internal"
+    "ios": {
+      "supportsTablet": true
     },
-    "production": {}
-  },
-  "submit": {
-    "production": {}
+    "android": {
+      "package": "com.sahilraikwar.arishop",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
   }
 }
