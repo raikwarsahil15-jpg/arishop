@@ -1,0 +1,14 @@
+/arishop
+  ├── /src
+  │   ├── /api (Firebase Backend Logic)
+  │   ├── /components (Reusable UI: ProductCard, CategoryChip, Header)
+  │   ├── /context (AuthContext, CartContext)
+  │   ├── /navigation (AppNavigator, AdminNavigator)
+  │   └── /screens
+  │       ├── /auth (Login, Signup)
+  │       ├── /shop (Home, Search, Details, Cart, Checkout)
+  │       ├── /profile (UserOrders, VIPStatus, WeeklyRequest)
+  │       └── /admin (Dashboard, ManageProducts, ManageWeeklyTop)
+  ├── App.js
+  ├── app.json
+  └── firebaseConfig.js

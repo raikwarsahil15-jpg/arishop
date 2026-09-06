@@ -1,0 +1,19 @@
+const startDate = new Date();
+const expiryDate = new Date();
+expiryDate.setDate(startDate.getDate() + 7); // Exactly 7 days expiry
+
+// Update user or active weekly showcase collection
+await db.collection('weeklyTopActive').doc(userId).set({
+  userId,
+  startDate: admin.firestore.Timestamp.fromDate(startDate),
+  expiryDate: admin.firestore.Timestamp.fromDate(expiryDate),
+  isActive: true
+});
+
+// Update request status
+await db.collection('weeklyTopRequests').doc(userId).update({
+  requestStatus: 'approved',
+  activatedAt: admin.firestore.FieldValue.serverTimestamp()
+});
+
+return res.status(200).json({ success: code = true, message: "Profile activated for Weekly Top Customer for 7 days." });
