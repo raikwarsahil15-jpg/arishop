@@ -38,7 +38,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a', // Rich Modern Dark Blue Background
+    backgroundColor: '#0f172a',
   },
   header: {
     padding: 20,
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#38bdf8', // Sky Blue Touch
+    color: '#38bdf8',
   },
   headerSubtitle: {
     fontSize: 14,
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   button: {
-    backgroundColor: '#ec4899', // Stunning Pink Touch
+    backgroundColor: '#ec4899',
     paddingVertical: 14,
     paddingHorizontal: 30,
     borderRadius: 30,
