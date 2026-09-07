@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ImageBackground, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Alert, Image } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { StyleSheet, Text, View, ImageBackground, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Alert, Image, KeyboardAvoidingView, Platform } from 'react-native';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('auth');
@@ -11,21 +11,21 @@ export default function App() {
   const [enableCategoriesGrid, setEnableCategoriesGrid] = useState(true);
   const [enableLoyaltyTier, setEnableLoyaltyTier] = useState(true);
   const [enableTopSellers, setEnableTopSellers] = useState(true);
+  const [enableMultiVendor, setEnableMultiVendor] = useState(true);
 
-  // बॉटम नैविगेशन टैब स्टेट
+  // नैविगेशन और वॉलेट स्टेट्स
   const [bottomTab, setBottomTab] = useState('home');
-
-  // वॉलेट, कॉइन्स और लाइव आर्डर स्टेटस
   const [userSpent, setUserSpent] = useState(1200);
   const [userCoins, setUserCoins] = useState(450); 
-  const [liveOrdersList, setLiveOrdersList] = useState([]); // कूरियर और शिपिंग डेटा के लिए
+  const [liveOrdersList, setLiveOrdersList] = useState([]); 
 
-  // बैनर रोटेशन स्टेट
-  const bannerList = [
+  // बैनर रोटेशन (मेमोरी लीक से बचाने के लिए क्लीनअप के साथ)
+  const bannerList = useMemo(() => [
     { id: '1', title: '🔥 Launch Offer: First 100 Orders Get 20% OFF!', sub: 'Earn 1-50 random coins per order!' },
     { id: '2', title: '✨ New Festive Collection Live Now!', sub: 'Explore premium clothes & accessories.' },
-    { id: '3', title: '🚀 Super Gadgets & Luxury Watches Available', sub: 'Unlock VIP tier on ₹5000+ purchases.' }
-  ];
+    { id: '3', title: '🚀 Multi-Vendor Marketplace Open!', sub: 'Sell your products & earn with Arishop.' }
+  ], []);
+
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function App() {
       setCurrentBannerIndex(prev => (prev + 1) % bannerList.length);
     }, 3500);
     return () => clearInterval(timer);
-  }, []);
+  }, [bannerList]);
 
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -48,6 +48,7 @@ export default function App() {
       image: 'https://images.unsplash.com/photo-1495105787522-5334e3ffa0ef?w=500', 
       minSpend: 0, 
       isRare: false,
+      sellerName: 'Sahil (Master Admin)',
       availableSizes: ['S', 'M', 'L', 'XL'],
       availableColors: ['Black', 'Navy Blue', 'Olive']
     },
@@ -61,30 +62,20 @@ export default function App() {
       image: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=500', 
       minSpend: 0, 
       isRare: false,
+      sellerName: 'Sahil (Master Admin)',
       availableSizes: ['XS', 'S', 'M', 'L'],
       availableColors: ['Red', 'Pink', 'Yellow']
-    },
-    { 
-      id: '3', 
-      title: 'VIP Rare Gold Watch (Luxury)', 
-      category: 'Gadgets', 
-      price: '₹5500', 
-      discountPercent: 20, 
-      desc: 'Exclusive item! Unlocked at ₹5000+ spend.', 
-      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500', 
-      minSpend: 5000, 
-      isRare: true,
-      availableSizes: ['Free Size'],
-      availableColors: ['Gold', 'Silver', 'Rose Gold']
     }
   ]);
 
-  const [topSellers] = useState([
+  const topSellers = useMemo(() => [
     { id: '1', name: 'Rahul Verma', sales: '₹3,500', insta: '@rahul_insta', photo: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' },
     { id: '2', name: 'Aman Khan', sales: '₹4,200', insta: '@aman_official', photo: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100' }
-  ]);
+  ], []);
 
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  
+  // एडमिन प्रोडक्ट स्टेट्स
   const [newTitle, setNewTitle] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [newDiscount, setNewDiscount] = useState('0');
@@ -95,9 +86,17 @@ export default function App() {
   const [newSizes, setNewSizes] = useState('S, M, L, XL');
   const [newColors, setNewColors] = useState('Black, White, Blue');
 
+  // सेलर रजिस्ट्रेशन स्टेट्स
+  const [showSellerRegModal, setShowSellerRegModal] = useState(false);
+  const [vendorShopName, setVendorShopName] = useState('');
+  const [vendorOwnerName, setVendorOwnerName] = useState('');
+  const [vendorPhone, setVendorPhone] = useState('');
+  const [vendorProdTitle, setVendorProdTitle] = useState('');
+  const [vendorProdPrice, setVendorProdPrice] = useState('');
+  const [vendorProdImage, setVendorProdImage] = useState('');
+
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSize, setSelectedSize] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
   
   const [buyerName, setBuyerName] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
@@ -106,138 +105,161 @@ export default function App() {
   
   const [supportMessage, setSupportMessage] = useState('');
   const [aiChatLog, setAiChatLog] = useState([
-    { sender: 'ai', text: 'Hello! I am Arishop AI Support. How can I help you with your order or products today?' }
+    { sender: 'ai', text: 'Hello! Welcome to Arishop. How can I help you with your order or selling today?' }
   ]);
 
-  const handleLogin = () => {
+  const handleLogin = useCallback(() => {
     if (!authInput.trim()) {
       Alert.alert('Error', 'कृपया अपना मोबाइल नंबर या जीमेल आईडी दर्ज करें!');
       return;
     }
-    setLoggedInUser(authInput);
+    setLoggedInUser(authInput.trim());
     setCurrentScreen('welcome');
-  };
+  }, [authInput]);
 
-  const handleAddProduct = () => {
-    if (!newTitle || !newPrice) {
+  const handleAddProduct = useCallback(() => {
+    if (!newTitle.trim() || !newPrice.trim()) {
       Alert.alert('Error', 'कृपया प्रोडक्ट का नाम और प्राइस भरें!');
       return;
     }
     const numericPrice = parseInt(newPrice.replace(/[^0-9]/g, '')) || 1000;
-    const isLuxury = numericPrice >= 5000 || parseInt(newMinSpend) >= 5000;
+    const isLuxury = numericPrice >= 5000;
 
     const newProd = {
       id: Date.now().toString(),
-      title: newTitle,
+      title: newTitle.trim(),
       category: newCategory,
       price: '₹' + numericPrice,
       discountPercent: parseInt(newDiscount) || 0,
-      desc: newDesc || 'High quality item from Arishop.',
-      image: newImage || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500',
-      minSpend: isLuxury ? 5000 : (parseInt(newMinSpend) || 0),
+      desc: newDesc.trim() || 'High quality item from Arishop.',
+      image: newImage.trim() || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500',
+      minSpend: isLuxury ? 5000 : 0,
       isRare: isLuxury,
+      sellerName: 'Sahil (Master Admin)',
       availableSizes: newSizes ? newSizes.split(',').map(s => s.trim()) : ['Standard'],
       availableColors: newColors ? newColors.split(',').map(c => c.trim()) : ['Default']
     };
 
-    setProducts([newProd, ...products]);
+    setProducts(prev => [newProd, ...prev]);
     setNewTitle('');
     setNewPrice('');
     setNewDiscount('0');
     setNewDesc('');
     setNewImage('');
-    setNewMinSpend('0');
     setShowAdminPanel(false);
-    Alert.alert('Success', 'नया प्रोडक्ट सफलतापूर्वक लाइव हो गया है!');
-  };
+    Alert.alert('Success', 'मास्टर एडमिन द्वारा नया प्रोडक्ट लाइव कर दिया गया है!');
+  }, [newTitle, newPrice, newCategory, newDiscount, newDesc, newImage, newSizes, newColors]);
 
-  const getRandomCoins = () => {
-    const rand = Math.random();
-    if (rand < 0.70) return Math.floor(Math.random() * 5) + 1;
-    else if (rand < 0.92) return Math.floor(Math.random() * 5) + 6;
-    else return Math.floor(Math.random() * 40) + 11;
-  };
-
-  // 🚀 शिपरॉकट / डिलीवरी पिनकोड चेकर और ऑटो कूरियर आर्डर जनरेटर
-  const handleCheckout = () => {
-    if (!buyerName || !buyerPhone || !buyerPincode || !buyerAddress) {
-      Alert.alert('अधूरा विवरण', 'कृपया अपना नाम, फोन नंबर, 6-अंकों का पिन कोड और पूरा पता भरें!');
+  const handleVendorProductSubmit = useCallback(() => {
+    if (!enableMultiVendor) {
+      Alert.alert('Notice', 'फिलहाल अन्य सेलर्स के लिए रजिस्ट्रेशन बंद (OFF) है।');
       return;
     }
-    if (buyerPincode.length !== 6) {
-      Alert.alert('अवैध पिन कोड', 'कृपया सही 6-अंकों का भारतीय पिन कोड (Pincode) दर्ज करें ताकि डिलीवरी चेक हो सके!');
-      return;
-    }
-    if (!selectedSize && selectedProduct?.availableSizes?.length > 0) {
-      Alert.alert('साइज चुनें', 'कृपया प्रोडक्ट का साइज चुनें!');
-      return;
-    }
-    if (!selectedColor && selectedProduct?.availableColors?.length > 0) {
-      Alert.alert('कलर चुनें', 'कृपया प्रोडक्ट का कलर चुनें!');
+    if (!vendorShopName.trim() || !vendorOwnerName.trim() || !vendorPhone.trim() || !vendorProdTitle.trim() || !vendorProdPrice.trim()) {
+      Alert.alert('अधूरा फॉर्म', 'कृपया सभी अनिवार्य विवरण भरें!');
       return;
     }
 
-    // शिपिंग और कूरियर पार्टनर असाइनमेंट सिमुलेशन
+    const rawPrice = parseInt(vendorProdPrice.replace(/[^0-9]/g, '')) || 500;
+    const newVendorProd = {
+      id: Date.now().toString(),
+      title: vendorProdTitle.trim(),
+      category: 'Men',
+      price: '₹' + rawPrice,
+      discountPercent: 5,
+      desc: `Sold by partner store: ${vendorShopName.trim()}`,
+      image: vendorProdImage.trim() || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500',
+      minSpend: 0,
+      isRare: false,
+      sellerName: `${vendorShopName.trim()} (${vendorOwnerName.trim()})`,
+      availableSizes: ['S', 'M', 'L', 'XL'],
+      availableColors: ['Default']
+    };
+
+    setProducts(prev => [newVendorProd, ...prev]);
+    setShowSellerRegModal(false);
+    setVendorShopName('');
+    setVendorOwnerName('');
+    setVendorPhone('');
+    setVendorProdTitle('');
+    setVendorProdPrice('');
+    setVendorProdImage('');
+
+    Alert.alert(
+      'पार्टनर सेलर प्रोडक्ट लाइव! 🤝', 
+      `बधाई हो ${vendorOwnerName}!\nआपका प्रोडक्ट Arishop पर लाइव हो गया है।\n\n📌 नियम: प्रत्येक सफल बिक्री पर 10% प्लेटफॉर्म कमीशन और 2% डिलीवरी चार्ज कटेगा।`
+    );
+  }, [enableMultiVendor, vendorShopName, vendorOwnerName, vendorPhone, vendorProdTitle, vendorProdPrice, vendorProdImage]);
+
+  const handleCheckout = useCallback(() => {
+    if (!buyerName.trim() || !buyerPhone.trim() || !buyerPincode.trim() || !buyerAddress.trim()) {
+      Alert.alert('अधूरा विवरण', 'कृपया नाम, फोन, पिनकोड और पूरा पता भरें!');
+      return;
+    }
+    if (buyerPincode.trim().length !== 6) {
+      Alert.alert('अवैध पिन कोड', 'कृपया सही 6-अंकों का भारतीय पिन कोड दर्ज करें!');
+      return;
+    }
+
     const courierPartners = ['Delhivery Express', 'Shiprocket Air', 'Blue Dart Express', 'Xpressbees'];
     const assignedCourier = courierPartners[Math.floor(Math.random() * courierPartners.length)];
     const trackingId = 'ARISHOP-' + Math.floor(100000 + Math.random() * 900000);
 
-    const earnedCoins = getRandomCoins();
+    const earnedCoins = Math.floor(Math.random() * 10) + 1;
     setUserCoins(prev => prev + earnedCoins);
     setUserSpent(prev => prev + 500);
 
     const newOrderData = {
       orderId: trackingId,
       productName: selectedProduct.title,
-      buyer: buyerName,
-      phone: buyerPhone,
-      pincode: buyerPincode,
-      address: buyerAddress,
-      size: selectedSize || 'Standard',
-      color: selectedColor || 'Standard',
+      seller: selectedProduct.sellerName,
+      buyer: buyerName.trim(),
       courier: assignedCourier,
-      status: 'Order Placed & Dispatched to Courier'
+      status: 'Dispatched to Courier'
     };
 
     setLiveOrdersList(prev => [newOrderData, ...prev]);
 
     Alert.alert(
       'आर्डर सफल & कूरियर बुक! 🚚🎉', 
-      `धन्यवाद ${buyerName}!\nपिन कोड (${buyerPincode}) पर सर्विस उपलब्ध है।\n\n📦 कूरियर पार्टनर: ${assignedCourier}\n🔖 ट्रैकिंग आईडी: ${trackingId}\n+${earnedCoins} कॉइन्स वॉलेट में जुड़े!`
+      `धन्यवाद ${buyerName}!\n\n📦 कूरियर: ${assignedCourier}\n🔖 ट्रैकिंग आईडी: ${trackingId}\n+${earnedCoins} कॉइन्स जुड़े!`
     );
 
     setSelectedProduct(null);
     setSelectedSize('');
-    setSelectedColor('');
     setBuyerName('');
     setBuyerPhone('');
     setBuyerPincode('');
     setBuyerAddress('');
-  };
+  }, [buyerName, buyerPhone, buyerPincode, buyerAddress, selectedProduct]);
 
-  const handleSendSupport = () => {
+  const handleSendSupport = useCallback(() => {
     if (!supportMessage.trim()) return;
-    const userMsg = supportMessage;
+    const userMsg = supportMessage.trim();
     setAiChatLog(prev => [...prev, { sender: 'user', text: userMsg }]);
     setSupportMessage('');
     setTimeout(() => {
-      setAiChatLog(prev => [...prev, { sender: 'ai', text: "I understand your query. For instant help regarding your delivery or shipping, contact Sahil Customer Care below!" }]);
-    }, 1000);
-  };
+      setAiChatLog(prev => [...prev, { sender: 'ai', text: "For support or commission details (10% platform fee + 2% delivery), contact Sahil Customer Care!" }]);
+    }, 800);
+  }, [supportMessage]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => selectedCategory === 'All' || p.category === selectedCategory);
+  }, [products, selectedCategory]);
 
   if (currentScreen === 'auth') {
     return (
       <SafeAreaView style={styles.containerStore}>
-        <View style={styles.authContainer}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.authContainer}>
           <Text style={styles.authLogo}>Arishop 🛍️</Text>
-          <Text style={styles.authSub}>Login with Mobile Number or Gmail to Start Shopping</Text>
+          <Text style={styles.authSub}>Multi-Vendor Professional Marketplace (Lag-Free)</Text>
           <Text style={styles.label}>Mobile Number or Gmail ID</Text>
           <TextInput style={styles.input} placeholder="e.g. 9876543210 or name@gmail.com" placeholderTextColor="#888" value={authInput} onChangeText={setAuthInput} />
           <TouchableOpacity style={styles.exploreButton} onPress={handleLogin}>
             <Text style={styles.buttonText}>Continue to Store ➔</Text>
           </TouchableOpacity>
-          <Text style={styles.footerText}>Secure Login powered by Sahil Raikwar</Text>
-        </View>
+          <Text style={styles.footerText}>Secure & Optimized Platform by Sahil Raikwar</Text>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
@@ -251,7 +273,7 @@ export default function App() {
               <View style={{flex: 1}} />
               <View style={styles.card}>
                 <Text style={styles.welcomeHeading}>Welcome, {loggedInUser}!</Text>
-                <Text style={styles.welcomeText}>India's Best Professional Marketplace.</Text>
+                <Text style={styles.welcomeText}>India's Best Multi-Vendor Marketplace.</Text>
                 <TouchableOpacity style={styles.exploreButton} onPress={() => setCurrentScreen('store')}>
                   <Text style={styles.buttonText}>Open Store ➔</Text>
                 </TouchableOpacity>
@@ -266,21 +288,21 @@ export default function App() {
 
   if (selectedProduct) {
     const rawPriceNum = parseInt(selectedProduct.price.replace(/[^0-9]/g, '')) || 500;
-    const productDiscount = selectedProduct.discountPercent || 0;
-    let finalDiscountPrice = rawPriceNum - (rawPriceNum * productDiscount) / 100;
+    const finalDiscountPrice = rawPriceNum - (rawPriceNum * (selectedProduct.discountPercent || 0)) / 100;
 
     return (
       <SafeAreaView style={styles.containerStore}>
-        <ScrollView contentContainerStyle={styles.storeScroll}>
+        <ScrollView contentContainerStyle={styles.storeScroll} keyboardShouldPersistTaps="handled">
           <Text style={styles.storeHeader}>Secure Checkout & Delivery 🛒</Text>
           <View style={styles.productCard}>
             <Image source={{ uri: selectedProduct.image }} style={styles.checkoutImage} />
             <Text style={styles.productTitle}>{selectedProduct.title}</Text>
+            <Text style={{color: '#38bdf8', fontSize: 12, marginBottom: 4}}>Sold By: {selectedProduct.sellerName}</Text>
             <Text style={styles.priceText}>Price: ₹{Math.round(finalDiscountPrice)}</Text>
           </View>
 
           <View style={styles.formContainer}>
-            <Text style={styles.label}>Select Size ({selectedSize || 'Choose'})</Text>
+            <Text style={styles.label}>Select Size</Text>
             <View style={styles.chipRow}>
               {selectedProduct.availableSizes?.map(sz => (
                 <TouchableOpacity key={sz} style={[styles.optionChip, selectedSize === sz && styles.optionChipActive]} onPress={() => setSelectedSize(sz)}>
@@ -289,21 +311,12 @@ export default function App() {
               ))}
             </View>
 
-            <Text style={styles.label}>Select Color ({selectedColor || 'Choose'})</Text>
-            <View style={styles.chipRow}>
-              {selectedProduct.availableColors?.map(col => (
-                <TouchableOpacity key={col} style={[styles.optionChip, selectedColor === col && styles.optionChipActive]} onPress={() => setSelectedColor(col)}>
-                  <Text style={[styles.optionChipText, selectedColor === col && styles.optionChipTextActive]}>{col}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
             <Text style={styles.label}>Full Name</Text>
             <TextInput style={styles.input} placeholder="Your name" placeholderTextColor="#888" value={buyerName} onChangeText={setBuyerName} />
             <Text style={styles.label}>Phone Number</Text>
             <TextInput style={styles.input} placeholder="10-digit mobile" placeholderTextColor="#888" keyboardType="phone-pad" value={buyerPhone} onChangeText={setBuyerPhone} />
-            <Text style={styles.label}>Pin Code (For Delivery & Shipping Check)</Text>
-            <TextInput style={styles.input} placeholder="6-digit pin code" placeholderTextColor="#888" keyboardType="numeric" maxLength={6} value={buyerPincode} onChangeText={setBuyerPincode} />
+            <Text style={styles.label}>Pin Code (6 Digits)</Text>
+            <TextInput style={styles.input} placeholder="Pincode" placeholderTextColor="#888" keyboardType="numeric" maxLength={6} value={buyerPincode} onChangeText={setBuyerPincode} />
             <Text style={styles.label}>Delivery Address</Text>
             <TextInput style={[styles.input, { height: 70 }]} placeholder="House no, street, city" placeholderTextColor="#888" multiline value={buyerAddress} onChangeText={setBuyerAddress} />
 
@@ -321,9 +334,8 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.containerStore}>
-      <ScrollView contentContainerStyle={styles.storeScroll}>
+      <ScrollView contentContainerStyle={styles.storeScroll} keyboardShouldPersistTaps="handled">
         
-        {/* टॉप हेडर */}
         <View style={styles.headerRow}>
           <Text style={styles.storeHeader}>Arishop 🛍️</Text>
           <View style={styles.coinBadge}>
@@ -331,9 +343,8 @@ export default function App() {
           </View>
         </View>
 
-        <TextInput style={styles.searchBar} placeholder="🔍 Search clothes, gadgets, shoes..." placeholderTextColor="#888" />
+        <TextInput style={styles.searchBar} placeholder="🔍 Search clothes, gadgets, partner items..." placeholderTextColor="#888" />
 
-        {/* 1. कैटेगरी आइकॉन ग्रिड */}
         {enableCategoriesGrid && (
           <View style={styles.amazonGridRow}>
             {['All', 'Men', 'Women', 'Kids', 'Gadgets', 'Deals', 'Beauty', 'More'].map(cat => (
@@ -347,94 +358,92 @@ export default function App() {
           </View>
         )}
 
-        {/* 2. ऑटो-रोटेटिंग प्रमोशनल बैनर */}
-        {enableBanners && (
+        {enableBanners && bannerList[currentBannerIndex] && (
           <View style={styles.bannerBox}>
             <Text style={styles.bannerTitle}>{bannerList[currentBannerIndex].title}</Text>
             <Text style={styles.bannerSub}>{bannerList[currentBannerIndex].sub}</Text>
           </View>
         )}
 
-        {/* एडमिन मास्टर टॉगल पैनल बटन */}
-        <TouchableOpacity style={styles.adminToggleButton} onPress={() => setShowAdminPanel(!showAdminPanel)}>
-          <Text style={styles.adminToggleText}>{showAdminPanel ? '❌ Close Admin Panel & Controls' : '⚙️ Admin Panel (On/Off Sections & Add Products)'}</Text>
+        <TouchableOpacity style={styles.becomeSellerBtn} onPress={() => {
+          if (!enableMultiVendor) {
+            Alert.alert('Closed', 'वर्तमान में अन्य सेलर्स के लिए रजिस्ट्रेशन मास्टर एडमिन द्वारा बंद (OFF) है।');
+            return;
+          }
+          setShowSellerRegModal(true);
+        }}>
+          <Text style={styles.becomeSellerText}>💼 Want to Sell on Arishop? Register Store Now</Text>
         </TouchableOpacity>
 
-        {/* एडमिन पैनल */}
-        {showAdminPanel && (
-          <View style={styles.formContainer}>
-            <Text style={styles.formHeading}>Master Section Controls (On/Off)</Text>
-            
-            <View style={styles.toggleRow}>
-              <Text style={styles.label}>Auto Banners:</Text>
-              <TouchableOpacity onPress={() => setEnableBanners(!enableBanners)} style={[styles.switchBtn, enableBanners ? styles.onBtn : styles.offBtn]}>
-                <Text style={styles.switchText}>{enableBanners ? 'ON' : 'OFF'}</Text>
-              </TouchableOpacity>
-            </View>
+        {showSellerRegModal && (
+          <View style={[styles.formContainer, {borderColor: '#22c55e'}]}>
+            <Text style={[styles.formHeading, {color: '#22c55e'}]}>🤝 Partner Seller Registration</Text>
+            <Text style={{color: '#cbd5e0', fontSize: 11, marginBottom: 10}}>
+              नियम: प्रत्येक आर्डर पर 10% प्लेटफॉर्म कमीशन और 2% डिलीवरी चार्ज कटेगा।
+            </Text>
 
-            <View style={styles.toggleRow}>
-              <Text style={styles.label}>Categories Grid:</Text>
-              <TouchableOpacity onPress={() => setEnableCategoriesGrid(!enableCategoriesGrid)} style={[styles.switchBtn, enableCategoriesGrid ? styles.onBtn : styles.offBtn]}>
-                <Text style={styles.switchText}>{enableCategoriesGrid ? 'ON' : 'OFF'}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.toggleRow}>
-              <Text style={styles.label}>VIP Loyalty Tier:</Text>
-              <TouchableOpacity onPress={() => setEnableLoyaltyTier(!enableLoyaltyTier)} style={[styles.switchBtn, enableLoyaltyTier ? styles.onBtn : styles.offBtn]}>
-                <Text style={styles.switchText}>{enableLoyaltyTier ? 'ON' : 'OFF'}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.toggleRow}>
-              <Text style={styles.label}>Weekly Top Customers:</Text>
-              <TouchableOpacity onPress={() => setEnableTopSellers(!enableTopSellers)} style={[styles.switchBtn, enableTopSellers ? styles.onBtn : styles.offBtn]}>
-                <Text style={styles.switchText}>{enableTopSellers ? 'ON' : 'OFF'}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.formHeading, {marginTop: 15, color: '#38bdf8'}]}>Add New Product</Text>
-            <Text style={styles.label}>Product Name</Text>
-            <TextInput style={styles.input} placeholder="e.g. Nike Sneakers" placeholderTextColor="#888" value={newTitle} onChangeText={setNewTitle} />
-            <Text style={styles.label}>Category (Men / Women / Kids / Gadgets)</Text>
-            <TextInput style={styles.input} placeholder="Men" placeholderTextColor="#888" value={newCategory} onChangeText={setNewCategory} />
-            <Text style={styles.label}>Price (₹)</Text>
-            <TextInput style={styles.input} placeholder="e.g. ₹1999" placeholderTextColor="#888" value={newPrice} onChangeText={setNewPrice} />
-            <Text style={styles.label}>Discount Percentage (%)</Text>
-            <TextInput style={styles.input} placeholder="0" placeholderTextColor="#888" keyboardType="numeric" value={newDiscount} onChangeText={setNewDiscount} />
-            <Text style={styles.label}>Available Sizes (Comma separated)</Text>
-            <TextInput style={styles.input} placeholder="S, M, L, XL" placeholderTextColor="#888" value={newSizes} onChangeText={setNewSizes} />
-            <Text style={styles.label}>Available Colors (Comma separated)</Text>
-            <TextInput style={styles.input} placeholder="Black, Red" placeholderTextColor="#888" value={newColors} onChangeText={setNewColors} />
+            <Text style={styles.label}>Shop Name</Text>
+            <TextInput style={styles.input} placeholder="e.g. Verma Fashions" placeholderTextColor="#888" value={vendorShopName} onChangeText={setVendorShopName} />
+            <Text style={styles.label}>Owner Name</Text>
+            <TextInput style={styles.input} placeholder="Your name" placeholderTextColor="#888" value={vendorOwnerName} onChangeText={setVendorOwnerName} />
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput style={styles.input} placeholder="10-digit mobile" placeholderTextColor="#888" keyboardType="phone-pad" value={vendorPhone} onChangeText={setVendorPhone} />
+            <Text style={styles.label}>Product Title</Text>
+            <TextInput style={styles.input} placeholder="e.g. Designer Kurti" placeholderTextColor="#888" value={vendorProdTitle} onChangeText={setVendorProdTitle} />
+            <Text style={styles.label}>Product Price (₹)</Text>
+            <TextInput style={styles.input} placeholder="e.g. ₹999" placeholderTextColor="#888" keyboardType="numeric" value={vendorProdPrice} onChangeText={setVendorProdPrice} />
             <Text style={styles.label}>Image URL</Text>
-            <TextInput style={styles.input} placeholder="Paste image link" placeholderTextColor="#888" value={newImage} onChangeText={setNewImage} />
-            <Text style={styles.label}>Description</Text>
-            <TextInput style={styles.input} placeholder="Short details" placeholderTextColor="#888" value={newDesc} onChangeText={setNewDesc} />
+            <TextInput style={styles.input} placeholder="Paste image link" placeholderTextColor="#888" value={vendorProdImage} onChangeText={setVendorProdImage} />
 
-            <TouchableOpacity style={styles.exploreButton} onPress={handleAddProduct}>
-              <Text style={styles.buttonText}>Publish Product Now 🚀</Text>
+            <TouchableOpacity style={[styles.exploreButton, {backgroundColor: '#22c55e'}]} onPress={handleVendorProductSubmit}>
+              <Text style={[styles.buttonText, {color: '#ffffff'}]}>Submit & Publish Product 🚀</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.backButton, {marginTop: 6}]} onPress={() => setShowSellerRegModal(false)}>
+              <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* लाइव आर्डर और कूरियर स्टेटस देखने का एडमिन डैशबोर्ड सेक्शन */}
+        <TouchableOpacity style={styles.adminToggleButton} onPress={() => setShowAdminPanel(!showAdminPanel)}>
+          <Text style={styles.adminToggleText}>{showAdminPanel ? '❌ Close Master Admin Controls' : '⚙️ Master Admin Control Panel'}</Text>
+        </TouchableOpacity>
+
+        {showAdminPanel && (
+          <View style={styles.formContainer}>
+            <Text style={styles.formHeading}>Master Controls</Text>
+            <View style={styles.toggleRow}>
+              <Text style={styles.label}>Multi-Vendor System:</Text>
+              <TouchableOpacity onPress={() => setEnableMultiVendor(!enableMultiVendor)} style={[styles.switchBtn, enableMultiVendor ? styles.onBtn : styles.offBtn]}>
+                <Text style={styles.switchText}>{enableMultiVendor ? 'ON' : 'OFF'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.formHeading, {marginTop: 10, color: '#38bdf8'}]}>Add Admin Product</Text>
+            <TextInput style={styles.input} placeholder="Product Name" placeholderTextColor="#888" value={newTitle} onChangeText={setNewTitle} />
+            <TextInput style={[styles.input, {marginTop: 6}]} placeholder="Price (₹)" placeholderTextColor="#888" keyboardType="numeric" value={newPrice} onChangeText={setNewPrice} />
+            <TextInput style={[styles.input, {marginTop: 6}]} placeholder="Image URL" placeholderTextColor="#888" value={newImage} onChangeText={setNewImage} />
+
+            <TouchableOpacity style={styles.exploreButton} onPress={handleAddProduct}>
+              <Text style={styles.buttonText}>Publish Official Product 🚀</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.topSellerSection}>
-          <Text style={styles.topSellerHeader}>🚚 Live Orders & Courier Tracking</Text>
+          <Text style={styles.topSellerHeader}>🚚 Live Orders & Tracking</Text>
           {liveOrdersList.length === 0 ? (
-            <Text style={{color: '#94a3b8', fontSize: 12, paddingVertical: 4}}>No orders yet. Place an order to see live courier dispatch details!</Text>
+            <Text style={{color: '#94a3b8', fontSize: 12}}>No orders yet.</Text>
           ) : (
             liveOrdersList.map((ord, i) => (
               <View key={i} style={[styles.sellerRow, {flexDirection: 'column', alignItems: 'flex-start', padding: 10}]}>
                 <Text style={styles.sellerName}>📦 {ord.productName} (ID: {ord.orderId})</Text>
                 <Text style={{color: '#22c55e', fontSize: 11, fontWeight: 'bold', marginTop: 2}}>Status: {ord.status}</Text>
-                <Text style={{color: '#38bdf8', fontSize: 11, marginTop: 1}}>Courier Partner: {ord.courier}</Text>
-                <Text style={{color: '#cbd5e0', fontSize: 11}}>Deliver to Pincode: {ord.pincode} ({ord.buyer})</Text>
+                <Text style={{color: '#38bdf8', fontSize: 11}}>Courier: {ord.courier} | Seller: {ord.seller}</Text>
               </View>
             ))
           )}
         </View>
 
-        {/* वीकली टॉप सेलर सेक्शन */}
         {enableTopSellers && (
           <View style={styles.topSellerSection}>
             <Text style={styles.topSellerHeader}>🏆 Weekly Top Customers & Sellers</Text>
@@ -450,51 +459,32 @@ export default function App() {
           </View>
         )}
 
-        {/* VIP लॉयल्टी सेक्शन */}
-        {enableLoyaltyTier && (
-          <View style={styles.levelCard}>
-            <Text style={styles.levelTitle}>👑 VIP & Luxury Section Status</Text>
-            <Text style={styles.levelText}>Your Total Spent: ₹{userSpent}</Text>
-            <Text style={styles.levelSubText}>
-              {userSpent >= 5000 ? '✨ Super Premium Items Unlocked!' : '🔒 Spend ₹5000+ to unlock VIP status!'}
-            </Text>
-          </View>
-        )}
+        <Text style={styles.sectionTitle}>Marketplace Products ({selectedCategory})</Text>
 
-        <Text style={styles.sectionTitle}>Trending Products ({selectedCategory})</Text>
-
-        {/* प्रोडक्ट्स ग्रिड लिस्ट */}
-        {products.filter(p => selectedCategory === 'All' || p.category === selectedCategory).map(item => {
-          const isLocked = enableLoyaltyTier && (userSpent < item.minSpend) && item.isRare;
+        {filteredProducts.map(item => {
           const rawNum = parseInt(item.price.replace(/[^0-9]/g, '')) || 500;
-          const disc = item.discountPercent || 0;
-          const discountedVal = Math.round(rawNum - (rawNum * disc) / 100);
+          const discountedVal = Math.round(rawNum - (rawNum * (item.discountPercent || 0)) / 100);
 
           return (
-            <View key={item.id} style={[styles.productCard, isLocked && styles.lockedCard]}>
+            <View key={item.id} style={styles.productCard}>
               <Image source={{ uri: item.image }} style={styles.productImage} />
               <View style={{padding: 12}}>
                 <Text style={styles.productTitle}>{item.title}</Text>
                 <Text style={styles.productDesc}>{item.desc}</Text>
-                <Text style={{color: '#94a3b8', fontSize: 11, marginBottom: 4}}>
-                  Sizes: {item.availableSizes?.join(', ')} | Colors: {item.availableColors?.join(', ')}
+                <Text style={{color: '#38bdf8', fontSize: 11, fontWeight: 'bold', marginBottom: 4}}>
+                  🏪 Seller: {item.sellerName || 'Sahil (Master Admin)'}
                 </Text>
                 <View style={styles.rowBetween}>
                   <Text style={styles.priceText}>₹{discountedVal}</Text>
-                  {isLocked ? (
-                    <Text style={styles.lockText}>🔒 Locked</Text>
-                  ) : (
-                    <TouchableOpacity style={styles.buyNowSmallBtn} onPress={() => setSelectedProduct(item)}>
-                      <Text style={styles.buyText}>Select & Buy</Text>
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity style={styles.buyNowSmallBtn} onPress={() => setSelectedProduct(item)}>
+                    <Text style={styles.buyText}>Select & Buy</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
           );
         })}
 
-        {/* AI सपोर्ट + साहिल कस्टमर केयर */}
         <View style={styles.supportBox}>
           <Text style={styles.supportHeader}>🤖 Arishop AI Support</Text>
           <View style={styles.chatContainer}>
@@ -505,7 +495,7 @@ export default function App() {
             ))}
           </View>
           <View style={styles.chatInputRow}>
-            <TextInput style={[styles.input, {flex: 1, marginRight: 8}]} placeholder="Type your issue..." placeholderTextColor="#888" value={supportMessage} onChangeText={setSupportMessage} />
+            <TextInput style={[styles.input, {flex: 1, marginRight: 8}]} placeholder="Type your query..." placeholderTextColor="#888" value={supportMessage} onChangeText={setSupportMessage} />
             <TouchableOpacity style={styles.sendBtn} onPress={handleSendSupport}>
               <Text style={styles.buttonText}>Send</Text>
             </TouchableOpacity>
@@ -517,18 +507,17 @@ export default function App() {
 
       </ScrollView>
 
-      {/* 3. बॉटम नैविगेशन बार */}
       <View style={styles.bottomNavContainer}>
         <TouchableOpacity style={styles.bottomNavItem} onPress={() => setBottomTab('home')}>
           <Text style={[styles.bottomNavText, bottomTab === 'home' && styles.bottomNavActive]}>🏠 Home</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bottomNavItem} onPress={() => { setBottomTab('you'); Alert.alert('Profile (You)', `Logged in user: ${loggedInUser || 'Sahil'}`); }}>
+        <TouchableOpacity style={styles.bottomNavItem} onPress={() => { setBottomTab('you'); Alert.alert('Profile', `Logged in: ${loggedInUser || 'Sahil'}`); }}>
           <Text style={[styles.bottomNavText, bottomTab === 'you' && styles.bottomNavActive]}>👤 You</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bottomNavItem} onPress={() => { setBottomTab('wallet'); Alert.alert('Wallet & Coins', `Total Coins: ${userCoins}\nTotal Spent: ₹${userSpent}`); }}>
+        <TouchableOpacity style={styles.bottomNavItem} onPress={() => { setBottomTab('wallet'); Alert.alert('Wallet', `Coins: ${userCoins} | Spent: ₹${userSpent}`); }}>
           <Text style={[styles.bottomNavText, bottomTab === 'wallet' && styles.bottomNavActive]}>🪙 Wallet</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bottomNavItem} onPress={() => { setBottomTab('cart'); Alert.alert('Cart', 'Your cart is ready for checkout.'); }}>
+        <TouchableOpacity style={styles.bottomNavItem} onPress={() => { setBottomTab('cart'); Alert.alert('Cart', 'Your cart is ready.'); }}>
           <Text style={[styles.bottomNavText, bottomTab === 'cart' && styles.bottomNavActive]}>🛒 Cart</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.bottomNavItem} onPress={() => { setBottomTab('menu'); setShowAdminPanel(true); }}>
@@ -567,6 +556,8 @@ const styles = StyleSheet.create({
   gridItem: { width: '22%', alignItems: 'center', marginBottom: 10 },
   gridCircle: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155', marginBottom: 4 },
   gridLabel: { color: '#cbd5e0', fontSize: 11, textAlign: 'center' },
+  becomeSellerBtn: { width: '100%', backgroundColor: '#22c55e', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
+  becomeSellerText: { color: '#ffffff', fontWeight: 'bold', fontSize: 13, textAlign: 'center' },
   adminToggleButton: { width: '100%', backgroundColor: '#0ea5e9', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginBottom: 15 },
   adminToggleText: { color: '#ffffff', fontWeight: 'bold', fontSize: 13, textAlign: 'center' },
   formContainer: { width: '100%', backgroundColor: '#1e293b', borderRadius: 16, padding: 15, marginBottom: 20, borderWidth: 1, borderColor: '#38bdf8' },
@@ -589,13 +580,8 @@ const styles = StyleSheet.create({
   sellerAvatar: { width: 35, height: 35, borderRadius: 17.5 },
   sellerName: { color: '#ffffff', fontSize: 12, fontWeight: 'bold' },
   sellerInsta: { color: '#38bdf8', fontSize: 11 },
-  levelCard: { width: '100%', backgroundColor: '#1e293b', borderRadius: 14, padding: 14, marginBottom: 15, borderWidth: 1, borderColor: '#ffcc00' },
-  levelTitle: { color: '#ffcc00', fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
-  levelText: { color: '#ffffff', fontSize: 12, fontWeight: 'bold', marginBottom: 2 },
-  levelSubText: { color: '#94a3b8', fontSize: 11 },
   sectionTitle: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
   productCard: { width: '100%', backgroundColor: '#1e293b', borderRadius: 16, overflow: 'hidden', marginBottom: 15, borderWidth: 1, borderColor: '#334155' },
-  lockedCard: { opacity: 0.75, borderColor: '#475569' },
   productImage: { width: '100%', height: 160 },
   checkoutImage: { width: '100%', height: 180, borderRadius: 10, marginBottom: 10 },
   productTitle: { fontSize: 16, fontWeight: 'bold', color: '#ffffff', marginBottom: 2 },
@@ -604,7 +590,6 @@ const styles = StyleSheet.create({
   priceText: { fontSize: 15, fontWeight: 'bold', color: '#38bdf8' },
   buyNowSmallBtn: { backgroundColor: '#ffcc00', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   buyText: { fontSize: 12, fontWeight: 'bold', color: '#000000' },
-  lockText: { fontSize: 11, fontWeight: 'bold', color: '#ef4444' },
   supportBox: { width: '100%', backgroundColor: '#1e293b', borderRadius: 16, padding: 15, marginTop: 10, borderWidth: 1, borderColor: '#38bdf8' },
   supportHeader: { color: '#38bdf8', fontSize: 15, fontWeight: 'bold', marginBottom: 10 },
   chatContainer: { maxHeight: 120, backgroundColor: '#0f172a', padding: 8, borderRadius: 8, marginBottom: 8 },
