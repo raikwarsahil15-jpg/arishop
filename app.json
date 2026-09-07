@@ -2,6 +2,7 @@
   "expo": {
     "name": "Arishop",
     "slug": "arishop",
+    "owner": "kashyapsahils-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
