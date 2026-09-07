@@ -7,7 +7,7 @@ export default function App() {
   if (currentScreen === 'welcome') {
     return (
       <ImageBackground 
-        source={require('./assets/welcome-banner.png')} 
+        source={require('./splash.png')} 
         style={styles.backgroundImage}
         resizeMode="cover"
       >
@@ -16,14 +16,12 @@ export default function App() {
             <View style={styles.content}>
               <View style={{flex: 1}} />
               
-              {/* वेलकम स्क्रीन कार्ड और बटन */}
               <View style={styles.card}>
                 <Text style={styles.welcomeHeading}>Welcome to Arishop</Text>
                 <Text style={styles.welcomeText}>
                   Shop More • Get More • Be Happy. Your magical shopping experience is ready!
                 </Text>
 
-                {/* Get Started बटन - क्लिक करते ही सीधे स्टोर खुलेगा */}
                 <TouchableOpacity 
                   style={styles.exploreButton} 
                   onPress={() => setCurrentScreen('store')}
@@ -40,7 +38,6 @@ export default function App() {
     );
   }
 
-  // स्टोर या शॉपिंग डैशबोर्ड स्क्रीन
   return (
     <SafeAreaView style={styles.containerStore}>
       <ScrollView contentContainerStyle={styles.storeScroll}>
@@ -76,7 +73,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', // बैनर साफ दिखने के लिए हल्का शेड
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   container: {
     flex: 1,
