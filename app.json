@@ -1,12 +1,15 @@
 {
   "expo": {
-    "name": "AriShop",
+    "name": "Arishop",
     "slug": "arishop",
     "owner": "sahilraikwars-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "android": {
@@ -14,13 +17,8 @@
     },
     "extra": {
       "eas": {
-        "projectId": "082ff27c-d2d1-44c0-a523-08145882a654"
+        "projectId": "यहाँ_अपनी_नयी_प्रोजेक्ट_आईडी_डालें"
       }
-    },
-    "sdkVersion": "51.0.0",
-    "platforms": [
-      "ios",
-      "android"
-    ]
+    }
   }
 }
