@@ -6,20 +6,19 @@ export default function App() {
   const [authInput, setAuthInput] = useState('');
   const [loggedInUser, setLoggedInUser] = useState('');
 
-  // मास्टर कंट्रोल टॉगल (कौन सा सेक्शन दिखाना है या छुपाना है)
+  // मास्टर कंट्रोल टॉगल
   const [enableBanners, setEnableBanners] = useState(true);
   const [enableCategoriesGrid, setEnableCategoriesGrid] = useState(true);
   const [enableLoyaltyTier, setEnableLoyaltyTier] = useState(true);
   const [enableTopSellers, setEnableTopSellers] = useState(true);
-  const [enableClothingSection, setEnableClothingSection] = useState(true);
-  const [enableGadgetsSection, setEnableGadgetsSection] = useState(true);
 
-  // बॉटम नैविगेशन टैब स्टेट ('home', 'you', 'wallet', 'cart', 'menu')
+  // बॉटम नैविगेशन टैब स्टेट
   const [bottomTab, setBottomTab] = useState('home');
 
-  // वॉलेट और कॉइन्स
+  // वॉलेट, कॉइन्स और लाइव आर्डर स्टेटस
   const [userSpent, setUserSpent] = useState(1200);
   const [userCoins, setUserCoins] = useState(450); 
+  const [liveOrdersList, setLiveOrdersList] = useState([]); // कूरियर और शिपिंग डेटा के लिए
 
   // बैनर रोटेशन स्टेट
   const bannerList = [
@@ -38,7 +37,6 @@ export default function App() {
 
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // प्रोडक्ट्स की खाली या कस्टमाइज़्ड लिस्ट (सिيर्फ वही जो आप जोड़ेंगे)
   const [products, setProducts] = useState([
     { 
       id: '1', 
@@ -81,12 +79,11 @@ export default function App() {
     }
   ]);
 
-  const [topSellers, setTopSellers] = useState([
+  const [topSellers] = useState([
     { id: '1', name: 'Rahul Verma', sales: '₹3,500', insta: '@rahul_insta', photo: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' },
     { id: '2', name: 'Aman Khan', sales: '₹4,200', insta: '@aman_official', photo: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100' }
   ]);
 
-  // एडमिन पैनल फॉर्म स्टेट
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newPrice, setNewPrice] = useState('');
@@ -106,7 +103,6 @@ export default function App() {
   const [buyerPhone, setBuyerPhone] = useState('');
   const [buyerPincode, setBuyerPincode] = useState('');
   const [buyerAddress, setBuyerAddress] = useState('');
-  const [orderCount, setOrderCount] = useState(42);
   
   const [supportMessage, setSupportMessage] = useState('');
   const [aiChatLog, setAiChatLog] = useState([
@@ -162,9 +158,14 @@ export default function App() {
     else return Math.floor(Math.random() * 40) + 11;
   };
 
+  // 🚀 शिपरॉकट / डिलीवरी पिनकोड चेकर और ऑटो कूरियर आर्डर जनरेटर
   const handleCheckout = () => {
     if (!buyerName || !buyerPhone || !buyerPincode || !buyerAddress) {
-      Alert.alert('अधूरा विवरण', 'कृपया अपना नाम, फोन नंबर, पिन कोड और पूरा पता भरें!');
+      Alert.alert('अधूरा विवरण', 'कृपया अपना नाम, फोन नंबर, 6-अंकों का पिन कोड और पूरा पता भरें!');
+      return;
+    }
+    if (buyerPincode.length !== 6) {
+      Alert.alert('अवैध पिन कोड', 'कृपया सही 6-अंकों का भारतीय पिन कोड (Pincode) दर्ज करें ताकि डिलीवरी चेक हो सके!');
       return;
     }
     if (!selectedSize && selectedProduct?.availableSizes?.length > 0) {
@@ -176,12 +177,35 @@ export default function App() {
       return;
     }
 
+    // शिपिंग और कूरियर पार्टनर असाइनमेंट सिमुलेशन
+    const courierPartners = ['Delhivery Express', 'Shiprocket Air', 'Blue Dart Express', 'Xpressbees'];
+    const assignedCourier = courierPartners[Math.floor(Math.random() * courierPartners.length)];
+    const trackingId = 'ARISHOP-' + Math.floor(100000 + Math.random() * 900000);
+
     const earnedCoins = getRandomCoins();
     setUserCoins(prev => prev + earnedCoins);
     setUserSpent(prev => prev + 500);
-    setOrderCount(prev => prev + 1);
 
-    Alert.alert('आर्डर सफल! 🎉', `धन्यवाद ${buyerName}! आपका ऑर्डर पिन कोड (${buyerPincode}) पर डिलीवर होगा। +${earnedCoins} कॉइन्स मिले हैं!`);
+    const newOrderData = {
+      orderId: trackingId,
+      productName: selectedProduct.title,
+      buyer: buyerName,
+      phone: buyerPhone,
+      pincode: buyerPincode,
+      address: buyerAddress,
+      size: selectedSize || 'Standard',
+      color: selectedColor || 'Standard',
+      courier: assignedCourier,
+      status: 'Order Placed & Dispatched to Courier'
+    };
+
+    setLiveOrdersList(prev => [newOrderData, ...prev]);
+
+    Alert.alert(
+      'आर्डर सफल & कूरियर बुक! 🚚🎉', 
+      `धन्यवाद ${buyerName}!\nपिन कोड (${buyerPincode}) पर सर्विस उपलब्ध है।\n\n📦 कूरियर पार्टनर: ${assignedCourier}\n🔖 ट्रैकिंग आईडी: ${trackingId}\n+${earnedCoins} कॉइन्स वॉलेट में जुड़े!`
+    );
+
     setSelectedProduct(null);
     setSelectedSize('');
     setSelectedColor('');
@@ -197,7 +221,7 @@ export default function App() {
     setAiChatLog(prev => [...prev, { sender: 'user', text: userMsg }]);
     setSupportMessage('');
     setTimeout(() => {
-      setAiChatLog(prev => [...prev, { sender: 'ai', text: "I understand your query. For instant help, you can connect directly with Sahil Customer Care below!" }]);
+      setAiChatLog(prev => [...prev, { sender: 'ai', text: "I understand your query. For instant help regarding your delivery or shipping, contact Sahil Customer Care below!" }]);
     }, 1000);
   };
 
@@ -248,7 +272,7 @@ export default function App() {
     return (
       <SafeAreaView style={styles.containerStore}>
         <ScrollView contentContainerStyle={styles.storeScroll}>
-          <Text style={styles.storeHeader}>Secure Checkout 🛒</Text>
+          <Text style={styles.storeHeader}>Secure Checkout & Delivery 🛒</Text>
           <View style={styles.productCard}>
             <Image source={{ uri: selectedProduct.image }} style={styles.checkoutImage} />
             <Text style={styles.productTitle}>{selectedProduct.title}</Text>
@@ -278,13 +302,13 @@ export default function App() {
             <TextInput style={styles.input} placeholder="Your name" placeholderTextColor="#888" value={buyerName} onChangeText={setBuyerName} />
             <Text style={styles.label}>Phone Number</Text>
             <TextInput style={styles.input} placeholder="10-digit mobile" placeholderTextColor="#888" keyboardType="phone-pad" value={buyerPhone} onChangeText={setBuyerPhone} />
-            <Text style={styles.label}>Pin Code</Text>
-            <TextInput style={styles.input} placeholder="6-digit pin code" placeholderTextColor="#888" keyboardType="numeric" value={buyerPincode} onChangeText={setBuyerPincode} />
+            <Text style={styles.label}>Pin Code (For Delivery & Shipping Check)</Text>
+            <TextInput style={styles.input} placeholder="6-digit pin code" placeholderTextColor="#888" keyboardType="numeric" maxLength={6} value={buyerPincode} onChangeText={setBuyerPincode} />
             <Text style={styles.label}>Delivery Address</Text>
             <TextInput style={[styles.input, { height: 70 }]} placeholder="House no, street, city" placeholderTextColor="#888" multiline value={buyerAddress} onChangeText={setBuyerAddress} />
 
             <TouchableOpacity style={styles.exploreButton} onPress={handleCheckout}>
-              <Text style={styles.buttonText}>Confirm Order & Earn Coins 🚀</Text>
+              <Text style={styles.buttonText}>Confirm Order & Book Delivery 🚀</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.backButton} onPress={() => setSelectedProduct(null)}>
               <Text style={styles.buttonText}>Back to Store</Text>
@@ -309,7 +333,7 @@ export default function App() {
 
         <TextInput style={styles.searchBar} placeholder="🔍 Search clothes, gadgets, shoes..." placeholderTextColor="#888" />
 
-        {/* 1. Amazon/Flipkart स्टाइल कैटेगरी आइकॉन ग्रिड (On/Off समर्थित) */}
+        {/* 1. कैटेगरी आइकॉन ग्रिड */}
         {enableCategoriesGrid && (
           <View style={styles.amazonGridRow}>
             {['All', 'Men', 'Women', 'Kids', 'Gadgets', 'Deals', 'Beauty', 'More'].map(cat => (
@@ -323,7 +347,7 @@ export default function App() {
           </View>
         )}
 
-        {/* 2. ऑटो-रोटेटिंग प्रमोशनल बैनर (On/Off समर्थित) */}
+        {/* 2. ऑटो-रोटेटिंग प्रमोशनल बैनर */}
         {enableBanners && (
           <View style={styles.bannerBox}>
             <Text style={styles.bannerTitle}>{bannerList[currentBannerIndex].title}</Text>
@@ -336,7 +360,7 @@ export default function App() {
           <Text style={styles.adminToggleText}>{showAdminPanel ? '❌ Close Admin Panel & Controls' : '⚙️ Admin Panel (On/Off Sections & Add Products)'}</Text>
         </TouchableOpacity>
 
-        {/* एडमिन पैनल: मास्टर ऑन/ऑफ टॉगल स्विच और प्रोडक्ट जोड़ने का फॉर्म */}
+        {/* एडमिन पैनल */}
         {showAdminPanel && (
           <View style={styles.formContainer}>
             <Text style={styles.formHeading}>Master Section Controls (On/Off)</Text>
@@ -392,6 +416,23 @@ export default function App() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* लाइव आर्डर और कूरियर स्टेटस देखने का एडमिन डैशबोर्ड सेक्शन */}
+        <View style={styles.topSellerSection}>
+          <Text style={styles.topSellerHeader}>🚚 Live Orders & Courier Tracking</Text>
+          {liveOrdersList.length === 0 ? (
+            <Text style={{color: '#94a3b8', fontSize: 12, paddingVertical: 4}}>No orders yet. Place an order to see live courier dispatch details!</Text>
+          ) : (
+            liveOrdersList.map((ord, i) => (
+              <View key={i} style={[styles.sellerRow, {flexDirection: 'column', alignItems: 'flex-start', padding: 10}]}>
+                <Text style={styles.sellerName}>📦 {ord.productName} (ID: {ord.orderId})</Text>
+                <Text style={{color: '#22c55e', fontSize: 11, fontWeight: 'bold', marginTop: 2}}>Status: {ord.status}</Text>
+                <Text style={{color: '#38bdf8', fontSize: 11, marginTop: 1}}>Courier Partner: {ord.courier}</Text>
+                <Text style={{color: '#cbd5e0', fontSize: 11}}>Deliver to Pincode: {ord.pincode} ({ord.buyer})</Text>
+              </View>
+            ))
+          )}
+        </View>
 
         {/* वीकली टॉप सेलर सेक्शन */}
         {enableTopSellers && (
@@ -476,7 +517,7 @@ export default function App() {
 
       </ScrollView>
 
-      {/* 3. बॉटम नैविगेशन बार (Amazon/Flipkart स्टाइल: Home, You, Wallet, Cart, Menu) */}
+      {/* 3. बॉटम नैविगेशन बार */}
       <View style={styles.bottomNavContainer}>
         <TouchableOpacity style={styles.bottomNavItem} onPress={() => setBottomTab('home')}>
           <Text style={[styles.bottomNavText, bottomTab === 'home' && styles.bottomNavActive]}>🏠 Home</Text>
