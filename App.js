@@ -6,7 +6,6 @@ export default function App() {
 
   if (currentScreen === 'welcome') {
     return (
-      // ImageBackground से पूरी स्क्रीन पर वही वाला शानदार वेलकम बैनर बैकग्राउंड में फैल जाएगा
       <ImageBackground 
         source={require('./assets/welcome-banner.png')} 
         style={styles.backgroundImage}
@@ -15,23 +14,21 @@ export default function App() {
         <View style={styles.overlay}>
           <SafeAreaView style={styles.container}>
             <View style={styles.content}>
+              <View style={{flex: 1}} />
               
-              {/* ऐप का नाम Arishop */}
-              <Text style={styles.headerTitle}>Arishop 🛍️</Text>
-              <Text style={styles.subTitle}>Discover & Win Rewards</Text>
-
+              {/* वेलकम स्क्रीन कार्ड और बटन */}
               <View style={styles.card}>
                 <Text style={styles.welcomeHeading}>Welcome to Arishop</Text>
                 <Text style={styles.welcomeText}>
-                  Your magical shopping experience is ready. Enjoy shopping and unlock exciting gifts!
+                  Shop More • Get More • Be Happy. Your magical shopping experience is ready!
                 </Text>
 
-                {/* Explore Shop बटन - बिना किसी एरर के सीधा आगे ले जाएगा */}
+                {/* Get Started बटन - क्लिक करते ही सीधे स्टोर खुलेगा */}
                 <TouchableOpacity 
                   style={styles.exploreButton} 
                   onPress={() => setCurrentScreen('store')}
                 >
-                  <Text style={styles.buttonText}>Explore Shop</Text>
+                  <Text style={styles.buttonText}>Get Started ➔</Text>
                 </TouchableOpacity>
               </View>
 
@@ -50,7 +47,6 @@ export default function App() {
         <Text style={styles.storeHeader}>Arishop Store 🛒</Text>
         <Text style={styles.storeSubText}>Explore our exclusive collection and gifts!</Text>
         
-        {/* यहाँ आपके प्रोडक्ट्स और कैटेगरीज दिखेंगी */}
         <View style={styles.productCard}>
           <Text style={styles.productTitle}>🎁 Special Mystery Box</Text>
           <Text style={styles.productDesc}>Unlock amazing rewards and offers inside Arishop.</Text>
@@ -61,7 +57,6 @@ export default function App() {
           <Text style={styles.productDesc}>Top quality shopping items curated just for you.</Text>
         </View>
 
-        {/* वापस वेलकम स्क्रीन पर जाने के लिए */}
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={() => setCurrentScreen('welcome')}
@@ -81,7 +76,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 10, 25, 0.75)', // इमेज के ऊपर हल्का डार्क शेड ताकि टेक्स्ट साफ दिखे
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // बैनर साफ दिखने के लिए हल्का शेड
   },
   container: {
     flex: 1,
@@ -91,71 +86,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 20,
-    paddingVertical: 40,
-  },
-  headerTitle: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: '#00ffff',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 5,
-  },
-  subTitle: {
-    fontSize: 14,
-    color: '#e2e8f0',
-    marginBottom: 10,
-    fontWeight: '600',
+    paddingBottom: 30,
   },
   card: {
     width: '100%',
     backgroundColor: 'rgba(15, 23, 42, 0.85)',
     borderRadius: 20,
-    padding: 22,
+    padding: 20,
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 255, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.4)',
   },
   welcomeHeading: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   welcomeText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#cbd5e0',
     textAlign: 'center',
-    marginBottom: 22,
-    lineHeight: 20,
+    marginBottom: 16,
   },
   exploreButton: {
     width: '100%',
-    backgroundColor: '#ff2a85',
-    paddingVertical: 15,
+    backgroundColor: '#ffcc00',
+    paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
-    shadowColor: '#ff2a85',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 5,
   },
   buttonText: {
-    color: '#ffffff',
+    color: '#000000',
     fontSize: 16,
     fontWeight: 'bold',
   },
   footerText: {
-    color: '#a0aec0',
-    fontSize: 12,
-    fontWeight: '500',
+    color: '#ffffff',
+    fontSize: 11,
+    marginTop: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   containerStore: {
     flex: 1,
