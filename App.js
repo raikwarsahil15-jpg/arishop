@@ -2,21 +2,29 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
-  Linking,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 
-import { initializeApp } from "firebase/app";
+import {
+  initializeApp,
+  getApps,
+} from "firebase/app";
+
 import {
   getAuth,
   onAuthStateChanged,
@@ -28,17 +36,21 @@ import {
 import {
   getFirestore,
   collection,
-  addDoc,
-  getDocs,
   doc,
+  getDoc,
+  getDocs,
   setDoc,
-  serverTimestamp,
+  addDoc,
+  updateDoc,
   query,
   where,
+  orderBy,
+  limit,
+  serverTimestamp,
 } from "firebase/firestore";
 
 /* =========================================================
-   ARISHOP - FIREBASE CONFIG
+   FIREBASE
    ========================================================= */
 
 const firebaseConfig = {
@@ -52,219 +64,171 @@ const firebaseConfig = {
   measurementId: "G-24R56NHBSS",
 };
 
-const firebaseApp = initializeApp(firebaseConfig);
+const firebaseApp =
+  getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 
 /* =========================================================
-   APP CONSTANTS
+   APP CONFIG
    ========================================================= */
 
 const APP_NAME = "Arishop";
-const SUPPORT_PHONE = "9999999999";
-
-const STORAGE = {
-  cart: "@arishop/cart/v3",
-  profile: "@arishop/profile/v3",
-  products: "@arishop/products/v3",
-};
 
 const ADMIN_EMAIL = "sahil.admin@arishop.com";
 
-/* =========================================================
-   CATEGORIES
-   ========================================================= */
+const DEFAULT_SUPPORT_NUMBERS = [
+  "920501360",
+];
 
 const CATEGORIES = [
-  {
-    id: "all",
-    name: "All",
-    icon: "🛍️",
-  },
-  {
-    id: "tshirt",
-    name: "T-Shirts",
-    icon: "👕",
-  },
-  {
-    id: "shirt",
-    name: "Shirts",
-    icon: "👔",
-  },
-  {
-    id: "pants",
-    name: "Pants",
-    icon: "👖",
-  },
-  {
-    id: "anime",
-    name: "Anime",
-    icon: "🎌",
-  },
-  {
-    id: "shoes",
-    name: "Shoes",
-    icon: "👟",
-  },
-  {
-    id: "accessories",
-    name: "Accessories",
-    icon: "👜",
-  },
-  {
-    id: "electronics",
-    name: "Electronics",
-    icon: "📱",
-  },
-  {
-    id: "other",
-    name: "Other",
-    icon: "📦",
-  },
+  { id: "all", name: "All", icon: "🛍️" },
+  { id: "electronics", name: "Electronics", icon: "📱" },
+  { id: "men", name: "Men", icon: "👕" },
+  { id: "women", name: "Women", icon: "👗" },
+  { id: "tshirts", name: "T-Shirts", icon: "👕" },
+  { id: "shirts", name: "Shirts", icon: "👔" },
+  { id: "pants", name: "Pants", icon: "👖" },
+  { id: "anime", name: "Anime", icon: "🎌" },
+  { id: "shoes", name: "Shoes", icon: "👟" },
+  { id: "accessories", name: "Accessories", icon: "⌚" },
+  { id: "other", name: "Other", icon: "📦" },
 ];
 
-/* =========================================================
-   DEFAULT PRODUCTS
-   ========================================================= */
+const DEFAULT_MASTER = {
+  electronics: true,
+  men: true,
+  women: true,
+  tshirts: true,
+  shirts: true,
+  pants: true,
+  anime: true,
+  shoes: true,
+  accessories: true,
+  other: true,
 
-const SEED_PRODUCTS = [
-  {
-    id: "seed-tshirt",
-    name: "Premium Anime T-Shirt",
-    description:
-      "Premium printed anime T-Shirt. Different sizes and colors available.",
-    price: 499,
-    mrp: 699,
-    category: "anime",
-    images: [],
-    colors: [
-      {
-        name: "Black",
-        available: true,
-      },
-      {
-        name: "White",
-        available: true,
-      },
-    ],
-    sizes: [
-      {
-        name: "S",
-        available: true,
-      },
-      {
-        name: "M",
-        available: true,
-      },
-      {
-        name: "L",
-        available: true,
-      },
-      {
-        name: "XL",
-        available: true,
-      },
-    ],
-    stock: 10,
-    cod: true,
-    active: true,
-    sellerId: "admin",
-    sellerName: "Arishop",
-    pickupLocation: "",
-    sellerLat: null,
-    sellerLng: null,
-    qrImage: null,
-    rating: 0,
-    reviews: 0,
-  },
-  {
-    id: "seed-pants",
-    name: "Street Style Pants",
-    description: "Comfortable everyday pants.",
-    price: 799,
-    mrp: 999,
-    category: "pants",
-    images: [],
-    colors: [
-      {
-        name: "Black",
-        available: true,
-      },
-      {
-        name: "Blue",
-        available: false,
-      },
-    ],
-    sizes: [
-      {
-        name: "28",
-        available: true,
-      },
-      {
-        name: "30",
-        available: true,
-      },
-      {
-        name: "32",
-        available: true,
-      },
-      {
-        name: "34",
-        available: true,
-      },
-    ],
-    stock: 10,
-    cod: true,
-    active: true,
-    sellerId: "admin",
-    sellerName: "Arishop",
-    pickupLocation: "",
-    sellerLat: null,
-    sellerLng: null,
-    qrImage: null,
-    rating: 0,
-    reviews: 0,
-  },
-];
+  weeklyTopCustomer: true,
+  premiumLuxury: true,
+
+  ads: true,
+  coins: true,
+  reviews: true,
+
+  cancellation: true,
+  refunds: true,
+
+  sellerSystem: false,
+
+  cod: true,
+  upi: true,
+
+  aiCustomerCare: true,
+
+  standardDelivery: true,
+  fastDelivery: true,
+};
+
+const EMPTY_PRODUCT = {
+  name: "",
+  description: "",
+  price: "",
+  mrp: "",
+  discount: "",
+  category: "tshirts",
+  stock: "10",
+  colors: "",
+  sizes: "",
+  pickupLocation: "",
+  sellerName: "Arishop",
+  qrImage: "",
+  images: [],
+  premiumOnly: false,
+};
+
+const EMPTY_AD = {
+  title: "",
+  subtitle: "",
+  image: "",
+  active: true,
+};
 
 /* =========================================================
    HELPERS
    ========================================================= */
 
-const money = (value) =>
-  `₹${Math.round(Number(value) || 0).toLocaleString("en-IN")}`;
+function money(value) {
+  const n = Number(value || 0);
+  return `₹${Math.round(n).toLocaleString("en-IN")}`;
+}
 
-const generateId = (prefix = "id") =>
-  `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+function safeNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
 
-const loadJSON = async (key, fallback) => {
-  try {
-    const raw = await AsyncStorage.getItem(key);
+function discountPercent(mrp, price) {
+  const m = safeNumber(mrp);
+  const p = safeNumber(price);
 
-    if (!raw) {
-      return fallback;
+  if (!m || !p || p >= m) return 0;
+
+  return Math.round(((m - p) / m) * 100);
+}
+
+function categoryEnabled(category, master) {
+  if (!category) return true;
+  if (category === "all") return true;
+
+  return master[category] !== false;
+}
+
+function productIsVisible(product, master, user) {
+  if (!product) return false;
+
+  if (product.active === false) return false;
+
+  if (!categoryEnabled(product.category, master)) {
+    return false;
+  }
+
+  if (product.premiumOnly) {
+    const spend = safeNumber(user?.eligibleSpend);
+
+    if (!master.premiumLuxury) {
+      return false;
     }
 
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
+    if (spend < 5000) {
+      return false;
+    }
   }
-};
 
-const saveJSON = async (key, value) => {
+  return true;
+}
+
+async function saveLocal(key, value) {
   try {
     await AsyncStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-};
+  } catch (e) {
+    console.log("Local save error:", e);
+  }
+}
 
-const categoryName = (id) => {
-  const item = CATEGORIES.find((x) => x.id === id);
+async function loadLocal(key, fallback) {
+  try {
+    const value = await AsyncStorage.getItem(key);
 
-  return item ? item.name : "Other";
-};
+    if (!value) return fallback;
+
+    return JSON.parse(value);
+  } catch (e) {
+    return fallback;
+  }
+}
 
 /* =========================================================
-   APP
+   MAIN APP
    ========================================================= */
 
 export default function App() {
@@ -276,1971 +240,2452 @@ export default function App() {
     name: "",
     phone: "",
     email: "",
-    role: "buyer",
+    role: "customer",
     coins: 0,
+    eligibleSpend: 0,
+    instagram: "",
+    instagramConsent: false,
   });
 
-  const [products, setProducts] = useState(SEED_PRODUCTS);
-  const [cart, setCart] = useState([]);
+  const [products, setProducts] = useState([]);
+
   const [orders, setOrders] = useState([]);
+
+  const [cart, setCart] = useState([]);
+
+  const [master, setMaster] = useState(DEFAULT_MASTER);
+
+  const [ads, setAds] = useState([]);
+
+  const [supportNumbers, setSupportNumbers] = useState(
+    DEFAULT_SUPPORT_NUMBERS
+  );
+
+  const [weeklyCustomers, setWeeklyCustomers] = useState([]);
 
   const [screen, setScreen] = useState("home");
 
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
   const [search, setSearch] = useState("");
+
   const [category, setCategory] = useState("all");
 
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedColor, setSelectedColor] = useState("");
+
   const [selectedSize, setSelectedSize] = useState("");
+
+  const [quantity, setQuantity] = useState(1);
+
+  const [address, setAddress] = useState("");
+
+  const [paymentMethod, setPaymentMethod] = useState("COD");
 
   const [deliveryMode, setDeliveryMode] = useState("standard");
 
-  const [address, setAddress] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    city: "",
-    pincode: "",
-  });
-
-  const [newProduct, setNewProduct] = useState({
-    name: "",
-    description: "",
-    price: "",
-    mrp: "",
-    category: "tshirt",
-    stock: "10",
-    colors: "",
-    unavailableColors: "",
-    sizes: "",
-    pickupLocation: "",
-    sellerName: "Arishop",
-    sellerLat: "",
-    sellerLng: "",
-  });
-
-  const [newImages, setNewImages] = useState([]);
-  const [newQR, setNewQR] = useState(null);
-
-  const [loginMode, setLoginMode] = useState("login");
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginName, setLoginName] = useState("");
-
   const [busy, setBusy] = useState(false);
 
+  const [loginMode, setLoginMode] = useState("login");
+
+  const [email, setEmail] = useState("");
+
+  const [password, setPassword] = useState("");
+
+  const [name, setName] = useState("");
+
+  const [phone, setPhone] = useState("");
+
+  const [adminProduct, setAdminProduct] = useState(EMPTY_PRODUCT);
+
+  const [adminImages, setAdminImages] = useState([]);
+
+  const [adminAd, setAdminAd] = useState(EMPTY_AD);
+
+  const [supportInput, setSupportInput] = useState("");
+
+  const [showMaster, setShowMaster] = useState(false);
+
   /* =======================================================
-     FIREBASE AUTH LISTENER
+     AUTH
      ======================================================= */
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      async (currentUser) => {
-        setFirebaseUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
 
-        if (currentUser) {
-          await loadProfile(currentUser);
-        }
+      if (!user) {
+        setProfile({
+          name: "",
+          phone: "",
+          email: "",
+          role: "customer",
+          coins: 0,
+          eligibleSpend: 0,
+          instagram: "",
+          instagramConsent: false,
+        });
 
         setLoading(false);
+        return;
       }
-    );
+
+      await loadUserProfile(user);
+
+      setLoading(false);
+    });
 
     return unsubscribe;
   }, []);
 
   /* =======================================================
-     LOCAL STORAGE
+     INITIAL DATA
      ======================================================= */
 
   useEffect(() => {
-    if (!loading) {
-      saveJSON(STORAGE.cart, cart);
-    }
-  }, [cart, loading]);
+    loadProducts();
+    loadMaster();
+    loadAds();
+    loadSupportNumbers();
+    loadWeeklyCustomers();
+    loadCart();
+  }, []);
 
   useEffect(() => {
-    if (!loading) {
-      saveJSON(STORAGE.profile, profile);
+    if (firebaseUser) {
+      loadOrders();
     }
-  }, [profile, loading]);
+  }, [firebaseUser]);
 
   /* =======================================================
-     LOAD LOCAL DATA
+     LOAD MASTER
      ======================================================= */
 
-  useEffect(() => {
-    if (!firebaseUser) {
+  async function loadMaster() {
+    try {
+      const ref = doc(db, "appSettings", "master");
+
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        setMaster({
+          ...DEFAULT_MASTER,
+          ...snap.data(),
+        });
+      } else {
+        setMaster(DEFAULT_MASTER);
+      }
+    } catch (e) {
+      console.log("Master load:", e);
+
+      const local = await loadLocal(
+        "arishop_master",
+        DEFAULT_MASTER
+      );
+
+      setMaster({
+        ...DEFAULT_MASTER,
+        ...local,
+      });
+    }
+  }
+
+  async function updateMasterControl(key, value) {
+    if (!isAdmin()) {
+      Alert.alert("Admin only", "यह control केवल Master Admin चला सकता है।");
       return;
     }
 
-    loadLocalData();
-  }, [firebaseUser]);
+    const next = {
+      ...master,
+      [key]: value,
+    };
 
-  const loadLocalData = async () => {
-    const savedCart = await loadJSON(STORAGE.cart, []);
-    const savedProfile = await loadJSON(
-      STORAGE.profile,
-      {
-        name: "",
-        phone: "",
-        email: firebaseUser?.email || "",
-        role: "buyer",
-        coins: 0,
-      }
-    );
+    setMaster(next);
 
-    setCart(savedCart);
-    setProfile(savedProfile);
+    await saveLocal("arishop_master", next);
 
-    await loadProductsFromFirebase();
-    await loadOrdersFromFirebase();
-  };
+    try {
+      await setDoc(
+        doc(db, "appSettings", "master"),
+        next,
+        { merge: true }
+      );
+
+      Alert.alert(
+        "Live Control",
+        `${key} ${value ? "ON" : "OFF"} कर दिया गया।`
+      );
+    } catch (e) {
+      Alert.alert(
+        "Firebase error",
+        "Master control save नहीं हुआ। Firebase Rules check करें।"
+      );
+    }
+  }
 
   /* =======================================================
-     FIRESTORE PROFILE
+     USERS
      ======================================================= */
 
-  const loadProfile = async (user) => {
+  async function loadUserProfile(user) {
     try {
-      const profileRef = doc(db, "users", user.uid);
+      const ref = doc(db, "users", user.uid);
 
-      const profileData = {
-        email: user.email || "",
-        name: user.displayName || "",
-        role:
-          user.email &&
-          user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()
-            ? "admin"
-            : "buyer",
-        coins: 0,
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        const data = snap.data();
+
+        setProfile({
+          name: data.name || "",
+          phone: data.phone || "",
+          email: user.email || data.email || "",
+          role:
+            user.email === ADMIN_EMAIL
+              ? "admin"
+              : data.role || "customer",
+          coins: safeNumber(data.coins),
+          eligibleSpend: safeNumber(data.eligibleSpend),
+          instagram: data.instagram || "",
+          instagramConsent: data.instagramConsent === true,
+        });
+      } else {
+        const newProfile = {
+          name: "",
+          phone: "",
+          email: user.email || "",
+          role: user.email === ADMIN_EMAIL ? "admin" : "customer",
+          coins: 0,
+          eligibleSpend: 0,
+          instagram: "",
+          instagramConsent: false,
+          createdAt: serverTimestamp(),
+        };
+
+        await setDoc(ref, newProfile);
+
+        setProfile({
+          ...newProfile,
+          createdAt: undefined,
+        });
+      }
+    } catch (e) {
+      console.log("Profile error:", e);
+    }
+  }
+
+  async function saveProfile() {
+    if (!firebaseUser) return;
+
+    setBusy(true);
+
+    try {
+      const next = {
+        ...profile,
+        email: firebaseUser.email || profile.email,
       };
 
       await setDoc(
-        profileRef,
-        {
-          ...profileData,
-          updatedAt: serverTimestamp(),
-        },
-        {
-          merge: true,
-        }
+        doc(db, "users", firebaseUser.uid),
+        next,
+        { merge: true }
       );
 
-      setProfile((old) => ({
-        ...old,
-        ...profileData,
-      }));
-    } catch (error) {
-      console.log("Profile load error:", error);
+      setProfile(next);
+
+      Alert.alert("Saved", "Profile save हो गई।");
+    } catch (e) {
+      Alert.alert("Error", "Profile save नहीं हो पाई।");
+    } finally {
+      setBusy(false);
     }
-  };
+  }
+
+  function isAdmin() {
+    return (
+      firebaseUser &&
+      (
+        firebaseUser.email === ADMIN_EMAIL ||
+        profile.role === "admin"
+      )
+    );
+  }
 
   /* =======================================================
-     LOAD PRODUCTS
+     PRODUCTS
      ======================================================= */
 
-  const loadProductsFromFirebase = async () => {
+  async function loadProducts() {
     try {
-      const snapshot = await getDocs(
-        collection(db, "products")
-      );
+      const snap = await getDocs(collection(db, "products"));
 
-      const cloudProducts = snapshot.docs
-        .map((item) => ({
-          id: item.id,
-          ...item.data(),
-        }))
-        .filter((item) => item.active !== false);
-
-      if (cloudProducts.length > 0) {
-        setProducts(cloudProducts);
-      } else {
-        const localProducts = await loadJSON(
-          STORAGE.products,
-          SEED_PRODUCTS
-        );
-
-        setProducts(
-          localProducts?.length
-            ? localProducts
-            : SEED_PRODUCTS
-        );
-      }
-    } catch (error) {
-      console.log("Product load error:", error);
-
-      const localProducts = await loadJSON(
-        STORAGE.products,
-        SEED_PRODUCTS
-      );
-
-      setProducts(
-        localProducts?.length
-          ? localProducts
-          : SEED_PRODUCTS
-      );
-    }
-  };
-
-  /* =======================================================
-     LOAD ORDERS
-     ======================================================= */
-
-  const loadOrdersFromFirebase = async () => {
-    if (!firebaseUser) {
-      return;
-    }
-
-    try {
-      const ordersQuery = query(
-        collection(db, "orders"),
-        where("userId", "==", firebaseUser.uid)
-      );
-
-      const snapshot = await getDocs(ordersQuery);
-
-      const cloudOrders = snapshot.docs.map((item) => ({
+      const list = snap.docs.map((item) => ({
         id: item.id,
         ...item.data(),
       }));
 
-      setOrders(cloudOrders);
-    } catch (error) {
-      console.log("Order load error:", error);
+      setProducts(list);
+    } catch (e) {
+      console.log("Products error:", e);
 
-      setOrders([]);
+      const local = await loadLocal("arishop_products", []);
+
+      setProducts(local);
     }
-  };
+  }
 
-  /* =======================================================
-     LOGIN / SIGNUP
-     ======================================================= */
-
-  const submitAuth = async () => {
-    const email = loginEmail.trim().toLowerCase();
-    const password = loginPassword;
-
-    if (!email) {
-      Alert.alert("Email", "Email डालें।");
+  async function createProduct() {
+    if (!isAdmin()) {
+      Alert.alert("Admin only", "Product केवल Admin बना सकता है।");
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert(
-        "Password",
-        "Password कम से कम 6 characters का होना चाहिए।"
-      );
+    if (!adminProduct.name.trim()) {
+      Alert.alert("Product name", "Product का नाम डालो।");
       return;
     }
 
-    if (
-      loginMode === "signup" &&
-      !loginName.trim()
-    ) {
-      Alert.alert("Name", "अपना नाम डालें।");
+    if (!adminProduct.price) {
+      Alert.alert("Price", "Product की price डालो।");
       return;
     }
+
+    setBusy(true);
 
     try {
-      setBusy(true);
+      const mrp = safeNumber(adminProduct.mrp);
+      const price = safeNumber(adminProduct.price);
 
-      if (loginMode === "login") {
-        await signInWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
-      } else {
-        const result =
-          await createUserWithEmailAndPassword(
-            auth,
-            email,
-            password
-          );
+      const product = {
+        name: adminProduct.name.trim(),
 
-        const role =
-          email === ADMIN_EMAIL
-            ? "admin"
-            : "buyer";
+        description:
+          adminProduct.description.trim(),
 
-        await setDoc(
-          doc(db, "users", result.user.uid),
-          {
-            email,
-            name: loginName.trim(),
-            role,
-            coins: 0,
-            createdAt: serverTimestamp(),
-          },
-          {
-            merge: true,
-          }
-        );
+        price,
 
-        setProfile({
-          name: loginName.trim(),
-          phone: "",
-          email,
-          role,
-          coins: 0,
-        });
-      }
-    } catch (error) {
-      console.log("Auth error:", error);
+        mrp,
 
-      let message =
-        "Login/Signup नहीं हो पाया।";
+        discount:
+          adminProduct.discount ||
+          discountPercent(mrp, price),
 
-      if (
-        error.code ===
-        "auth/invalid-credential"
-      ) {
-        message =
-          "Email या Password गलत है।";
-      }
+        category: adminProduct.category,
 
-      if (
-        error.code ===
-        "auth/email-already-in-use"
-      ) {
-        message =
-          "यह Email पहले से registered है। Login करें।";
-      }
+        stock: safeNumber(adminProduct.stock),
 
-      if (
-        error.code ===
-        "auth/invalid-email"
-      ) {
-        message =
-          "Email सही format में डालें।";
-      }
+        colors: adminProduct.colors
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
 
-      if (
-        error.code ===
-        "auth/weak-password"
-      ) {
-        message =
-          "Password कम से कम 6 characters का रखें।";
-      }
+        sizes: adminProduct.sizes
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
 
-      Alert.alert(APP_NAME, message);
+        pickupLocation:
+          adminProduct.pickupLocation.trim(),
+
+        sellerName:
+          adminProduct.sellerName.trim() ||
+          "Arishop",
+
+        images: adminImages,
+
+        qrImage:
+          adminProduct.qrImage || "",
+
+        cod: master.cod,
+
+        upi: master.upi,
+
+        active: true,
+
+        premiumOnly:
+          adminProduct.premiumOnly === true,
+
+        sellerId:
+          firebaseUser.uid,
+
+        createdAt:
+          serverTimestamp(),
+
+        rating: 0,
+
+        reviews: 0,
+      };
+
+      const ref = await addDoc(
+        collection(db, "products"),
+        product
+      );
+
+      const finalProduct = {
+        id: ref.id,
+        ...product,
+      };
+
+      setProducts((prev) => [
+        finalProduct,
+        ...prev,
+      ]);
+
+      await saveLocal(
+        "arishop_products",
+        [
+          finalProduct,
+          ...products,
+        ]
+      );
+
+      setAdminProduct(EMPTY_PRODUCT);
+
+      setAdminImages([]);
+
+      Alert.alert(
+        "Product live",
+        "Product Firebase में save हो गया।"
+      );
+    } catch (e) {
+      console.log(e);
+
+      Alert.alert(
+        "Product error",
+        "Product save नहीं हुआ। Firebase Rules check करें।"
+      );
     } finally {
       setBusy(false);
     }
-  };
+  }
 
-  const logout = async () => {
-    try {
-      await signOut(auth);
-
-      setFirebaseUser(null);
-      setScreen("home");
-      setSelectedProduct(null);
-    } catch (error) {
-      Alert.alert(
-        "Logout",
-        "Logout नहीं हो पाया।"
-      );
-    }
-  };
-
-  /* =======================================================
-     PRODUCT FILTER
-     ======================================================= */
-
-  const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-
-    return products.filter((product) => {
-      if (product.active === false) {
-        return false;
-      }
-
-      if (
-        category !== "all" &&
-        product.category !== category
-      ) {
-        return false;
-      }
-
-      if (!q) {
-        return true;
-      }
-
-      return (
-        String(product.name || "")
-          .toLowerCase()
-          .includes(q) ||
-        String(product.description || "")
-          .toLowerCase()
-          .includes(q) ||
-        String(
-          categoryName(product.category)
-        )
-          .toLowerCase()
-          .includes(q)
-      );
-    });
-  }, [
-    products,
-    search,
-    category,
-  ]);
-
-  /* =======================================================
-     CART
-     ======================================================= */
-
-  const cartDetailed = useMemo(() => {
-    return cart
-      .map((item) => {
-        const product = products.find(
-          (p) => p.id === item.productId
-        );
-
-        if (!product) {
-          return null;
-        }
-
-        return {
-          ...item,
-          product,
-        };
-      })
-      .filter(Boolean);
-  }, [cart, products]);
-
-  const cartCount = cart.reduce(
-    (sum, item) =>
-      sum + Number(item.qty || 0),
-    0
-  );
-
-  const cartTotal = cartDetailed.reduce(
-    (sum, item) =>
-      sum +
-      Number(item.product.price || 0) *
-        Number(item.qty || 0),
-    0
-  );
-
-  const addToCart = (
-    product,
-    color = "",
-    size = ""
-  ) => {
-    if (!product) {
-      return;
-    }
-
-    if (Number(product.stock || 0) <= 0) {
-      Alert.alert(
-        "Out of Stock",
-        "यह product अभी available नहीं है।"
-      );
-      return;
-    }
-
-    const availableColors =
-      (product.colors || []).filter(
-        (item) => item.available !== false
-      );
-
-    const availableSizes =
-      (product.sizes || []).filter(
-        (item) => item.available !== false
-      );
-
-    if (
-      availableColors.length > 0 &&
-      !color
-    ) {
-      Alert.alert(
-        "Color चुनें",
-        "Available color चुनें।"
-      );
-      return;
-    }
-
-    if (
-      availableSizes.length > 0 &&
-      !size
-    ) {
-      Alert.alert(
-        "Size चुनें",
-        "Available size चुनें।"
-      );
-      return;
-    }
-
-    setCart((current) => {
-      const index = current.findIndex(
-        (item) =>
-          item.productId === product.id &&
-          item.color === color &&
-          item.size === size
-      );
-
-      if (index >= 0) {
-        const copy = [...current];
-
-        copy[index] = {
-          ...copy[index],
-          qty:
-            Number(copy[index].qty || 0) + 1,
-        };
-
-        return copy;
-      }
-
-      return [
-        ...current,
-        {
-          id: generateId("cart"),
-          productId: product.id,
-          name: product.name,
-          price: Number(product.price || 0),
-          image:
-            product.images?.[0] || null,
-          color,
-          size,
-          qty: 1,
-        },
-      ];
-    });
-
-    Alert.alert(
-      "Cart",
-      "Product cart में add हो गया।"
-    );
-  };
-
-  const changeCartQty = (
-    cartId,
-    amount
-  ) => {
-    setCart((current) =>
-      current
-        .map((item) =>
-          item.id === cartId
-            ? {
-                ...item,
-                qty:
-                  Number(item.qty || 0) +
-                  amount,
-              }
-            : item
-        )
-        .filter(
-          (item) => Number(item.qty) > 0
-        )
-    );
-  };
-
-  /* =======================================================
-     PRODUCT IMAGE PICKER
-     ======================================================= */
-
-  const pickGalleryImages = async () => {
-    if (newImages.length >= 10) {
-      Alert.alert(
-        "Maximum Photos",
-        "एक product में maximum 10 photos रख सकते हैं।"
-      );
-      return;
-    }
-
+  async function chooseProductImages() {
     const permission =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
       Alert.alert(
         "Permission",
-        "Gallery permission allow करें।"
+        "Gallery permission देना जरूरी है।"
       );
       return;
     }
 
     const result =
-      await ImagePicker.launchImageLibraryAsync(
-        {
-          mediaTypes:
-            ImagePicker.MediaTypeOptions.Images,
-          allowsMultipleSelection: true,
-          selectionLimit:
-            10 - newImages.length,
-          quality: 0.85,
-        }
-      );
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsMultipleSelection: true,
+        selectionLimit: 10,
+        quality: 0.85,
+      });
 
     if (!result.canceled) {
-      const images =
-        result.assets.map(
-          (asset) => asset.uri
-        );
+      const uris =
+        result.assets.map((item) => item.uri);
 
-      setNewImages((old) =>
-        [...old, ...images].slice(0, 10)
-      );
+      setAdminImages((prev) => [
+        ...prev,
+        ...uris,
+      ].slice(0, 10));
     }
-  };
+  }
 
-  const takeProductPhoto = async () => {
-    if (newImages.length >= 10) {
-      Alert.alert(
-        "Maximum Photos",
-        "एक product में maximum 10 photos रख सकते हैं।"
-      );
-      return;
-    }
-
+  async function takeProductPhoto() {
     const permission =
       await ImagePicker.requestCameraPermissionsAsync();
 
     if (!permission.granted) {
       Alert.alert(
-        "Camera Permission",
-        "Camera permission allow करें।"
+        "Permission",
+        "Camera permission देना जरूरी है।"
       );
       return;
     }
 
     const result =
       await ImagePicker.launchCameraAsync({
-        mediaTypes:
-          ImagePicker.MediaTypeOptions.Images,
         quality: 0.85,
       });
 
-    if (
-      !result.canceled &&
-      result.assets?.[0]?.uri
-    ) {
-      setNewImages((old) =>
-        [...old, result.assets[0].uri].slice(
-          0,
-          10
-        )
-      );
+    if (!result.canceled) {
+      setAdminImages((prev) => [
+        ...prev,
+        result.assets[0].uri,
+      ].slice(0, 10));
     }
-  };
-
-  const pickQRImage = async () => {
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert(
-        "Permission",
-        "Gallery permission allow करें।"
-      );
-      return;
-    }
-
-    const result =
-      await ImagePicker.launchImageLibraryAsync(
-        {
-          mediaTypes:
-            ImagePicker.MediaTypeOptions.Images,
-          quality: 1,
-        }
-      );
-
-    if (
-      !result.canceled &&
-      result.assets?.[0]?.uri
-    ) {
-      setNewQR(
-        result.assets[0].uri
-      );
-    }
-  };
+  }
 
   /* =======================================================
-     ADD PRODUCT TO FIRESTORE
+     ADS
      ======================================================= */
 
-  const addProduct = async () => {
-    if (profile.role !== "admin") {
-      Alert.alert(
-        "Admin Only",
-        "Product publish करने के लिए authorized admin account चाहिए।"
+  async function loadAds() {
+    try {
+      const q = query(
+        collection(db, "ads"),
+        where("active", "==", true),
+        limit(10)
       );
+
+      const snap = await getDocs(q);
+
+      const list = snap.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+
+      setAds(list);
+    } catch (e) {
+      const local = await loadLocal(
+        "arishop_ads",
+        []
+      );
+
+      setAds(local);
+    }
+  }
+
+  async function createAd() {
+    if (!isAdmin()) return;
+
+    if (!adminAd.title.trim()) {
+      Alert.alert("Ad", "Ad title डालो।");
       return;
     }
 
-    if (!newProduct.name.trim()) {
-      Alert.alert(
-        "Product Name",
-        "Product name डालें।"
-      );
-      return;
-    }
-
-    const price = Number(
-      newProduct.price
-    );
-
-    const mrp =
-      Number(newProduct.mrp) || price;
-
-    const stock =
-      Number(newProduct.stock) || 0;
-
-    if (!Number.isFinite(price) || price <= 0) {
-      Alert.alert(
-        "Price",
-        "Valid price डालें।"
-      );
-      return;
-    }
-
-    const colors =
-      newProduct.colors
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean);
-
-    const unavailableColors =
-      newProduct.unavailableColors
-        .split(",")
-        .map((x) =>
-          x.trim().toLowerCase()
-        )
-        .filter(Boolean);
-
-    const sizes =
-      newProduct.sizes
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean);
-
-    const product = {
-      name: newProduct.name.trim(),
-
-      description:
-        newProduct.description.trim() ||
-        "Quality product from Arishop.",
-
-      price,
-
-      mrp,
-
-      discountPercent:
-        mrp > price
-          ? Math.round(
-              ((mrp - price) / mrp) *
-                100
-            )
-          : 0,
-
-      category:
-        newProduct.category,
-
-      images: newImages,
-
-      colors: colors.map(
-        (name) => ({
-          name,
-          available:
-            !unavailableColors.includes(
-              name.toLowerCase()
-            ),
-        })
-      ),
-
-      sizes: sizes.map(
-        (name) => ({
-          name,
-          available: true,
-        })
-      ),
-
-      stock,
-
-      cod: true,
-
-      active: true,
-
-      sellerId:
-        firebaseUser?.uid || "admin",
-
-      sellerName:
-        newProduct.sellerName ||
-        "Arishop",
-
-      pickupLocation:
-        newProduct.pickupLocation,
-
-      sellerLat:
-        newProduct.sellerLat
-          ? Number(
-              newProduct.sellerLat
-            )
-          : null,
-
-      sellerLng:
-        newProduct.sellerLng
-          ? Number(
-              newProduct.sellerLng
-            )
-          : null,
-
-      qrImage: newQR,
-
-      rating: 0,
-
-      reviews: 0,
-
-      createdAt:
-        serverTimestamp(),
-    };
+    setBusy(true);
 
     try {
-      setBusy(true);
-
-      const document =
-        await addDoc(
-          collection(db, "products"),
-          product
-        );
-
-      const localProduct = {
-        id: document.id,
-        ...product,
-        createdAt:
-          new Date().toISOString(),
+      const ad = {
+        ...adminAd,
+        title: adminAd.title.trim(),
+        subtitle: adminAd.subtitle.trim(),
+        createdAt: serverTimestamp(),
+        createdBy: firebaseUser.uid,
       };
 
-      setProducts((old) => [
-        localProduct,
-        ...old,
+      const ref = await addDoc(
+        collection(db, "ads"),
+        ad
+      );
+
+      const finalAd = {
+        id: ref.id,
+        ...ad,
+      };
+
+      setAds((prev) => [
+        finalAd,
+        ...prev,
       ]);
 
-      setNewProduct({
-        name: "",
-        description: "",
-        price: "",
-        mrp: "",
-        category: "tshirt",
-        stock: "10",
-        colors: "",
-        unavailableColors: "",
-        sizes: "",
-        pickupLocation: "",
-        sellerName: "Arishop",
-        sellerLat: "",
-        sellerLng: "",
-      });
-
-      setNewImages([]);
-      setNewQR(null);
+      setAdminAd(EMPTY_AD);
 
       Alert.alert(
-        "Product Added",
-        "Product Firestore में save हो गया।"
+        "Ad live",
+        "तुम्हारा advertisement save हो गया।"
       );
-    } catch (error) {
-      console.log(
-        "Add product error:",
-        error
-      );
-
+    } catch (e) {
       Alert.alert(
-        "Product Error",
-        "Product save नहीं हुआ। Firestore Rules और Firebase connection check करें।"
+        "Ad error",
+        "Advertisement save नहीं हुआ।"
       );
     } finally {
       setBusy(false);
     }
-  };
+  }
 
   /* =======================================================
-     PLACE COD ORDER
+     SUPPORT NUMBERS
      ======================================================= */
 
-  const placeCODOrder = async () => {
-    if (!firebaseUser) {
+  async function loadSupportNumbers() {
+    try {
+      const snap = await getDoc(
+        doc(db, "appSettings", "support")
+      );
+
+      if (snap.exists()) {
+        const nums = snap.data().numbers;
+
+        if (Array.isArray(nums)) {
+          setSupportNumbers(nums);
+          return;
+        }
+      }
+    } catch (e) {
+      console.log(e);
+    }
+
+    const local = await loadLocal(
+      "arishop_support",
+      DEFAULT_SUPPORT_NUMBERS
+    );
+
+    setSupportNumbers(local);
+  }
+
+  async function addSupportNumber() {
+    if (!isAdmin()) return;
+
+    const number =
+      supportInput.trim();
+
+    if (!number) {
       Alert.alert(
-        "Login Required",
-        "पहले login करें।"
+        "Number",
+        "Support number डालो।"
       );
       return;
     }
 
-    if (!cartDetailed.length) {
-      Alert.alert(
-        "Cart Empty",
-        "Cart में कोई product नहीं है।"
-      );
-      return;
-    }
+    const next = [
+      ...supportNumbers,
+      number,
+    ];
 
-    if (
-      !address.name.trim() ||
-      !address.phone.trim() ||
-      !address.address.trim() ||
-      !address.pincode.trim()
-    ) {
-      Alert.alert(
-        "Delivery Address",
-        "नाम, phone, address और pincode भरें।"
-      );
-      return;
-    }
+    setSupportNumbers(next);
 
-    if (
-      !/^\d{10}$/.test(
-        address.phone.trim()
-      )
-    ) {
-      Alert.alert(
-        "Phone",
-        "10 digit mobile number डालें।"
-      );
-      return;
-    }
+    setSupportInput("");
 
-    if (
-      !/^\d{6}$/.test(
-        address.pincode.trim()
-      )
-    ) {
-      Alert.alert(
-        "Pincode",
-        "6 digit pincode डालें।"
-      );
-      return;
-    }
-
-    const deliveryFee =
-      deliveryMode === "fast"
-        ? 40
-        : 0;
-
-    const subtotal = cartTotal;
-
-    const total =
-      subtotal + deliveryFee;
-
-    const order = {
-      userId:
-        firebaseUser.uid,
-
-      items: cartDetailed.map(
-        (item) => ({
-          productId:
-            item.product.id,
-          name:
-            item.product.name,
-          price:
-            Number(
-              item.product.price || 0
-            ),
-          qty:
-            Number(item.qty || 0),
-          color:
-            item.color || "",
-          size:
-            item.size || "",
-          image:
-            item.product.images?.[0] ||
-            null,
-        })
-      ),
-
-      subtotal,
-
-      deliveryFee,
-
-      total,
-
-      deliveryMode,
-
-      paymentMode: "COD",
-
-      paymentStatus: "COD",
-
-      status: "PLACED",
-
-      address: {
-        ...address,
-      },
-
-      createdAt:
-        serverTimestamp(),
-    };
+    await saveLocal(
+      "arishop_support",
+      next
+    );
 
     try {
-      setBusy(true);
+      await setDoc(
+        doc(db, "appSettings", "support"),
+        {
+          numbers: next,
+        },
+        { merge: true }
+      );
 
-      const document =
+      Alert.alert(
+        "Saved",
+        "Support number add हो गया।"
+      );
+    } catch (e) {
+      Alert.alert(
+        "Error",
+        "Support number Firebase में save नहीं हुआ।"
+      );
+    }
+  }
+
+  async function removeSupportNumber(number) {
+    if (!isAdmin()) return;
+
+    const next =
+      supportNumbers.filter(
+        (item) => item !== number
+      );
+
+    setSupportNumbers(next);
+
+    await saveLocal(
+      "arishop_support",
+      next
+    );
+
+    try {
+      await setDoc(
+        doc(db, "appSettings", "support"),
+        {
+          numbers: next,
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  /* =======================================================
+     WEEKLY TOP CUSTOMER
+     ======================================================= */
+
+  async function loadWeeklyCustomers() {
+    try {
+      const q = query(
+        collection(db, "weeklyCustomers"),
+        orderBy("eligibleSpend", "desc"),
+        limit(20)
+      );
+
+      const snap = await getDocs(q);
+
+      const list =
+        snap.docs.map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }));
+
+      setWeeklyCustomers(list);
+    } catch (e) {
+      console.log(
+        "Weekly customers:",
+        e
+      );
+    }
+  }
+
+  /* =======================================================
+     CART
+     ======================================================= */
+
+  async function loadCart() {
+    const saved =
+      await loadLocal(
+        "arishop_cart",
+        []
+      );
+
+    setCart(saved);
+  }
+
+  async function saveCart(next) {
+    setCart(next);
+
+    await saveLocal(
+      "arishop_cart",
+      next
+    );
+  }
+
+  function addToCart(product) {
+    if (!productIsVisible(
+      product,
+      master,
+      profile
+    )) {
+      Alert.alert(
+        "Unavailable",
+        "यह product अभी available नहीं है।"
+      );
+      return;
+    }
+
+    if (safeNumber(product.stock) <= 0) {
+      Alert.alert(
+        "Out of stock",
+        "यह product अभी stock में नहीं है।"
+      );
+      return;
+    }
+
+    const item = {
+      cartId:
+        `${product.id}-${selectedColor}-${selectedSize}`,
+
+      productId: product.id,
+
+      name: product.name,
+
+      price: safeNumber(product.price),
+
+      image:
+        product.images?.[0] || "",
+
+      color:
+        selectedColor || "",
+
+      size:
+        selectedSize || "",
+
+      quantity,
+    };
+
+    const existingIndex =
+      cart.findIndex(
+        (x) => x.cartId === item.cartId
+      );
+
+    let next;
+
+    if (existingIndex >= 0) {
+      next = [...cart];
+
+      next[existingIndex] = {
+        ...next[existingIndex],
+        quantity:
+          next[existingIndex].quantity +
+          quantity,
+      };
+    } else {
+      next = [
+        ...cart,
+        item,
+      ];
+    }
+
+    saveCart(next);
+
+    Alert.alert(
+      "Added",
+      "Product cart में add हो गया।"
+    );
+  }
+
+  function removeFromCart(cartId) {
+    const next =
+      cart.filter(
+        (item) => item.cartId !== cartId
+      );
+
+    saveCart(next);
+  }
+
+  function changeCartQuantity(cartId, delta) {
+    const next =
+      cart
+        .map((item) => {
+          if (item.cartId !== cartId) {
+            return item;
+          }
+
+          return {
+            ...item,
+            quantity: Math.max(
+              1,
+              item.quantity + delta
+            ),
+          };
+        });
+
+    saveCart(next);
+  }
+
+  const cartTotal = useMemo(() => {
+    return cart.reduce(
+      (total, item) =>
+        total +
+        safeNumber(item.price) *
+          safeNumber(item.quantity),
+      0
+    );
+  }, [cart]);
+
+  /* =======================================================
+     ORDERS
+     ======================================================= */
+
+  async function loadOrders() {
+    if (!firebaseUser) return;
+
+    try {
+      const q = query(
+        collection(db, "orders"),
+        where(
+          "userId",
+          "==",
+          firebaseUser.uid
+        )
+      );
+
+      const snap =
+        await getDocs(q);
+
+      const list =
+        snap.docs.map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }));
+
+      list.sort(
+        (a, b) =>
+          safeNumber(
+            b.createdAt?.seconds
+          ) -
+          safeNumber(
+            a.createdAt?.seconds
+          )
+      );
+
+      setOrders(list);
+    } catch (e) {
+      console.log(
+        "Orders error:",
+        e
+      );
+    }
+  }
+
+  async function placeOrder() {
+    if (!firebaseUser) {
+      Alert.alert(
+        "Login required",
+        "Order करने के लिए login करो।"
+      );
+      setScreen("profile");
+      return;
+    }
+
+    if (!cart.length) {
+      Alert.alert(
+        "Cart empty",
+        "पहले product cart में डालो।"
+      );
+      return;
+    }
+
+    if (!address.trim()) {
+      Alert.alert(
+        "Address",
+        "Delivery address डालो।"
+      );
+      return;
+    }
+
+    if (
+      paymentMethod === "COD" &&
+      !master.cod
+    ) {
+      Alert.alert(
+        "COD बंद है",
+        "Admin ने Cash on Delivery बंद कर रखा है।"
+      );
+      return;
+    }
+
+    if (
+      paymentMethod === "UPI" &&
+      !master.upi
+    ) {
+      Alert.alert(
+        "UPI बंद है",
+        "Admin ने UPI बंद कर रखा है।"
+      );
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      const deliveryFee =
+        deliveryMode === "fast"
+          ? 40
+          : 0;
+
+      const subtotal =
+        cartTotal;
+
+      const total =
+        subtotal +
+        deliveryFee;
+
+      const order = {
+        userId:
+          firebaseUser.uid,
+
+        customerName:
+          profile.name || "",
+
+        customerPhone:
+          profile.phone || "",
+
+        customerEmail:
+          firebaseUser.email || "",
+
+        items: cart,
+
+        subtotal,
+
+        deliveryFee,
+
+        total,
+
+        address:
+          address.trim(),
+
+        paymentMethod,
+
+        deliveryMode,
+
+        status:
+          "PLACED",
+
+        cancellationStatus:
+          "NONE",
+
+        refundStatus:
+          "NONE",
+
+        trackingStatus:
+          "ORDER_PLACED",
+
+        createdAt:
+          serverTimestamp(),
+      };
+
+      const ref =
         await addDoc(
           collection(db, "orders"),
           order
         );
 
-      setOrders((old) => [
-        {
-          id: document.id,
-          ...order,
-          createdAt:
-            new Date().toISOString(),
-        },
-        ...old,
+      const localOrder = {
+        id: ref.id,
+        ...order,
+      };
+
+      setOrders((prev) => [
+        localOrder,
+        ...prev,
       ]);
 
-      setCart([]);
+      await saveCart([]);
+
+      setAddress("");
 
       setScreen("orders");
 
       Alert.alert(
-        "Order Placed",
-        `आपका COD order ${document.id} create हो गया है।`
+        "Order placed",
+        `Order successfully place हो गया।\n\nAmount: ${money(total)}`
       );
-    } catch (error) {
-      console.log(
-        "Order error:",
-        error
-      );
+    } catch (e) {
+      console.log(e);
 
       Alert.alert(
-        "Order Error",
-        "Order save नहीं हुआ। Firestore Rules check करें।"
+        "Order error",
+        "Order save नहीं हुआ। Firebase Rules check करें।"
       );
     } finally {
       setBusy(false);
     }
-  };
+  }
+
+  async function requestCancellation(order) {
+    if (!firebaseUser) return;
+
+    if (!master.cancellation) {
+      Alert.alert(
+        "Cancellation बंद है",
+        "Cancellation अभी Admin ने बंद किया हुआ है।"
+      );
+      return;
+    }
+
+    try {
+      await updateDoc(
+        doc(db, "orders", order.id),
+        {
+          cancellationStatus:
+            "REQUESTED",
+
+          cancellationRequestedAt:
+            serverTimestamp(),
+        }
+      );
+
+      setOrders((prev) =>
+        prev.map((item) =>
+          item.id === order.id
+            ? {
+                ...item,
+                cancellationStatus:
+                  "REQUESTED",
+              }
+            : item
+        )
+      );
+
+      Alert.alert(
+        "Request sent",
+        "Cancellation request भेज दी गई है।"
+      );
+    } catch (e) {
+      Alert.alert(
+        "Error",
+        "Cancellation request नहीं भेजी गई।"
+      );
+    }
+  }
+
+  async function requestRefund(order) {
+    if (!firebaseUser) return;
+
+    if (!master.refunds) {
+      Alert.alert(
+        "Refund बंद है",
+        "Refund system अभी Admin ने बंद किया हुआ है।"
+      );
+      return;
+    }
+
+    try {
+      await updateDoc(
+        doc(db, "orders", order.id),
+        {
+          refundStatus:
+            "REQUESTED",
+
+          refundRequestedAt:
+            serverTimestamp(),
+        }
+      );
+
+      setOrders((prev) =>
+        prev.map((item) =>
+          item.id === order.id
+            ? {
+                ...item,
+                refundStatus:
+                  "REQUESTED",
+              }
+            : item
+        )
+      );
+
+      Alert.alert(
+        "Refund request",
+        "Refund request भेज दी गई है। सामान्य target 24–48 घंटे है; actual bank/payment provider timing अलग हो सकती है।"
+      );
+    } catch (e) {
+      Alert.alert(
+        "Error",
+        "Refund request नहीं भेजी गई।"
+      );
+    }
+  }
 
   /* =======================================================
-     SELECT PRODUCT
+     LOGIN / SIGNUP
      ======================================================= */
 
-  const openProduct = (
-    product
-  ) => {
-    setSelectedProduct(product);
+  async function loginOrSignup() {
+    if (!email.trim()) {
+      Alert.alert(
+        "Email",
+        "Email डालो।"
+      );
+      return;
+    }
 
-    const firstColor =
-      (product.colors || [])
-        .find(
-          (item) =>
-            item.available !== false
-        )?.name || "";
+    if (!password) {
+      Alert.alert(
+        "Password",
+        "Password डालो।"
+      );
+      return;
+    }
 
-    const firstSize =
-      (product.sizes || [])
-        .find(
-          (item) =>
-            item.available !== false
-        )?.name || "";
+    setBusy(true);
 
-    setSelectedColor(firstColor);
-    setSelectedSize(firstSize);
-    setDeliveryMode("standard");
+    try {
+      let result;
 
-    setScreen("product");
-  };
+      if (loginMode === "login") {
+        result =
+          await signInWithEmailAndPassword(
+            auth,
+            email.trim(),
+            password
+          );
+      } else {
+        result =
+          await createUserWithEmailAndPassword(
+            auth,
+            email.trim(),
+            password
+          );
+
+        const role =
+          email.trim().toLowerCase() ===
+          ADMIN_EMAIL.toLowerCase()
+            ? "admin"
+            : "customer";
+
+        await setDoc(
+          doc(
+            db,
+            "users",
+            result.user.uid
+          ),
+          {
+            name: name.trim(),
+            phone: phone.trim(),
+            email: email.trim(),
+            role,
+            coins: 0,
+            eligibleSpend: 0,
+            instagram: "",
+            instagramConsent: false,
+            createdAt:
+              serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+
+      setScreen("home");
+    } catch (e) {
+      console.log(e);
+
+      let message =
+        "Login/signup नहीं हुआ।";
+
+      if (
+        e.code ===
+        "auth/invalid-credential"
+      ) {
+        message =
+          "Email या password गलत है।";
+      }
+
+      if (
+        e.code ===
+        "auth/email-already-in-use"
+      ) {
+        message =
+          "यह email पहले से registered है।";
+      }
+
+      if (
+        e.code ===
+        "auth/weak-password"
+      ) {
+        message =
+          "Password कम से कम 6 characters का रखें।";
+      }
+
+      Alert.alert(
+        "Authentication",
+        message
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function logout() {
+    try {
+      await signOut(auth);
+      setScreen("home");
+    } catch (e) {
+      console.log(e);
+    }
+  }
 
   /* =======================================================
-     LOADING
+     FILTERS
+     ======================================================= */
+
+  const visibleProducts =
+    useMemo(() => {
+      const text =
+        search.trim().toLowerCase();
+
+      return products.filter(
+        (product) => {
+          if (
+            !productIsVisible(
+              product,
+              master,
+              profile
+            )
+          ) {
+            return false;
+          }
+
+          if (
+            category !== "all" &&
+            product.category !== category
+          ) {
+            return false;
+          }
+
+          if (!text) {
+            return true;
+          }
+
+          return (
+            String(
+              product.name || ""
+            )
+              .toLowerCase()
+              .includes(text) ||
+            String(
+              product.description || ""
+            )
+              .toLowerCase()
+              .includes(text)
+          );
+        }
+      );
+    }, [
+      products,
+      master,
+      profile,
+      search,
+      category,
+    ]);
+
+  /* =======================================================
+     PRODUCT DETAILS
+     ======================================================= */
+
+  function openProduct(product) {
+    setSelectedProduct(product);
+
+    setSelectedColor(
+      product.colors?.[0] || ""
+    );
+
+    setSelectedSize(
+      product.sizes?.[0] || ""
+    );
+
+    setQuantity(1);
+
+    setScreen("product");
+  }
+
+  /* =======================================================
+     PREMIUM
+     ======================================================= */
+
+  const premiumUnlocked =
+    safeNumber(
+      profile.eligibleSpend
+    ) >= 5000;
+
+  /* =======================================================
+     AI SUPPORT
+     ======================================================= */
+
+  function openAIHelp() {
+    if (!master.aiCustomerCare) {
+      Alert.alert(
+        "AI Customer Care",
+        "AI Customer Care अभी बंद है।"
+      );
+      return;
+    }
+
+    setScreen("ai");
+  }
+
+  function getSupportNumber() {
+    if (!supportNumbers.length) {
+      return null;
+    }
+
+    return supportNumbers[0];
+  }
+
+  /* =======================================================
+     RENDER
      ======================================================= */
 
   if (loading) {
     return (
-      <SafeAreaView
-        style={styles.center}
-      >
+      <SafeAreaView style={styles.loading}>
         <ActivityIndicator
           size="large"
         />
-
-        <Text
-          style={
-            styles.loadingText
-          }
-        >
-          Arishop शुरू हो रहा है...
+        <Text style={styles.loadingText}>
+          Arishop loading...
         </Text>
       </SafeAreaView>
     );
   }
 
-  /* =======================================================
-     AUTH SCREEN
-     ======================================================= */
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar
+        barStyle="dark-content"
+      />
 
-  if (!firebaseUser) {
-    return (
-      <SafeAreaView
-        style={styles.container}
-      >
-        <ScrollView
-          contentContainerStyle={
-            styles.loginContainer
-          }
-        >
-          <Text
-            style={styles.bigLogo}
-          >
-            Ari
-            <Text
-              style={
-                styles.logoAccent
+      <View style={styles.app}>
+        {screen === "home" && (
+          <HomeScreen
+            products={visibleProducts}
+            ads={ads}
+            master={master}
+            category={category}
+            setCategory={setCategory}
+            search={search}
+            setSearch={setSearch}
+            openProduct={openProduct}
+            profile={profile}
+            premiumUnlocked={
+              premiumUnlocked
+            }
+            setScreen={setScreen}
+          />
+        )}
+
+        {screen === "product" &&
+          selectedProduct && (
+            <ProductScreen
+              product={
+                selectedProduct
               }
-            >
-              shop
-            </Text>
-          </Text>
-
-          <Text
-            style={styles.subtitle}
-          >
-            Shopping made simple
-          </Text>
-
-          <View
-            style={styles.card}
-          >
-            <Text
-              style={styles.h1}
-            >
-              {loginMode === "login"
-                ? "Login"
-                : "Create Account"}
-            </Text>
-
-            {loginMode ===
-              "signup" && (
-              <>
-                <Text
-                  style={styles.label}
-                >
-                  Name
-                </Text>
-
-                <TextInput
-                  style={styles.input}
-                  value={loginName}
-                  onChangeText={
-                    setLoginName
-                  }
-                  placeholder="अपना नाम"
-                />
-              </>
-            )}
-
-            <Text
-              style={styles.label}
-            >
-              Email
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              value={loginEmail}
-              onChangeText={
-                setLoginEmail
+              master={master}
+              selectedColor={
+                selectedColor
               }
-              placeholder="Email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            <Text
-              style={styles.label}
-            >
-              Password
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              value={loginPassword}
-              onChangeText={
-                setLoginPassword
+              setSelectedColor={
+                setSelectedColor
               }
-              placeholder="कम से कम 6 characters"
-              secureTextEntry
-            />
-
-            <TouchableOpacity
-              style={styles.primary}
-              onPress={submitAuth}
-              disabled={busy}
-            >
-              {busy ? (
-                <ActivityIndicator
-                  color="#fff"
-                />
-              ) : (
-                <Text
-                  style={
-                    styles.primaryText
-                  }
-                >
-                  {loginMode ===
-                  "login"
-                    ? "Login"
-                    : "Create Account"}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.switchButton}
-              onPress={() =>
-                setLoginMode(
-                  loginMode ===
-                    "login"
-                    ? "signup"
-                    : "login"
+              selectedSize={
+                selectedSize
+              }
+              setSelectedSize={
+                setSelectedSize
+              }
+              quantity={quantity}
+              setQuantity={setQuantity}
+              addToCart={() =>
+                addToCart(
+                  selectedProduct
                 )
               }
-            >
-              <Text
-                style={
-                  styles.switchText
-                }
-              >
-                {loginMode ===
-                "login"
-                  ? "नया account बनाएं → Sign Up"
-                  : "पहले से account है → Login"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
+              goBack={() =>
+                setScreen("home")
+              }
+            />
+          )}
 
-  /* =======================================================
-     HEADER
-     ======================================================= */
+        {screen === "cart" && (
+          <CartScreen
+            cart={cart}
+            cartTotal={cartTotal}
+            removeFromCart={
+              removeFromCart
+            }
+            changeCartQuantity={
+              changeCartQuantity
+            }
+            goBack={() =>
+              setScreen("home")
+            }
+            checkout={() =>
+              setScreen("checkout")
+            }
+          />
+        )}
 
-  const Header = () => (
-    <View
-      style={styles.header}
-    >
-      <TouchableOpacity
-        onPress={() =>
-          setScreen("home")
-        }
-      >
-        <Text
-          style={styles.logo}
+        {screen === "checkout" && (
+          <CheckoutScreen
+            cartTotal={cartTotal}
+            address={address}
+            setAddress={setAddress}
+            paymentMethod={
+              paymentMethod
+            }
+            setPaymentMethod={
+              setPaymentMethod
+            }
+            deliveryMode={
+              deliveryMode
+            }
+            setDeliveryMode={
+              setDeliveryMode
+            }
+            master={master}
+            placeOrder={
+              placeOrder
+            }
+            busy={busy}
+            goBack={() =>
+              setScreen("cart")
+            }
+          />
+        )}
+
+        {screen === "orders" && (
+          <OrdersScreen
+            orders={orders}
+            master={master}
+            requestCancellation={
+              requestCancellation
+            }
+            requestRefund={
+              requestRefund
+            }
+            goBack={() =>
+              setScreen("home")
+            }
+          />
+        )}
+
+        {screen === "profile" && (
+          <ProfileScreen
+            firebaseUser={
+              firebaseUser
+            }
+            profile={profile}
+            setProfile={setProfile}
+            loginMode={loginMode}
+            setLoginMode={
+              setLoginMode
+            }
+            email={email}
+            setEmail={setEmail}
+            password={password}
+            setPassword={
+              setPassword
+            }
+            name={name}
+            setName={setName}
+            phone={phone}
+            setPhone={setPhone}
+            loginOrSignup={
+              loginOrSignup
+            }
+            logout={logout}
+            saveProfile={
+              saveProfile
+            }
+            busy={busy}
+            setScreen={setScreen}
+            isAdmin={isAdmin}
+            openAIHelp={
+              openAIHelp
+            }
+          />
+        )}
+
+        {screen === "weekly" && (
+          <WeeklyCustomerScreen
+            customers={
+              weeklyCustomers
+            }
+            master={master}
+            goBack={() =>
+              setScreen("home")
+            }
+          />
+        )}
+
+        {screen === "premium" && (
+          <PremiumScreen
+            products={products.filter(
+              (item) =>
+                item.premiumOnly
+            )}
+            unlocked={
+              premiumUnlocked
+            }
+            master={master}
+            openProduct={
+              openProduct
+            }
+            goBack={() =>
+              setScreen("home")
+            }
+          />
+        )}
+
+        {screen === "ai" && (
+          <AICustomerCare
+            supportNumbers={
+              supportNumbers
+            }
+            master={master}
+            goBack={() =>
+              setScreen("profile")
+            }
+          />
+        )}
+
+        {screen === "admin" &&
+          isAdmin() && (
+            <AdminScreen
+              master={master}
+              updateMasterControl={
+                updateMasterControl
+              }
+              product={
+                adminProduct
+              }
+              setProduct={
+                setAdminProduct
+              }
+              images={
+                adminImages
+              }
+              chooseImages={
+                chooseProductImages
+              }
+              takePhoto={
+                takeProductPhoto
+              }
+              createProduct={
+                createProduct
+              }
+              ad={adminAd}
+              setAd={setAdminAd}
+              createAd={createAd}
+              supportNumbers={
+                supportNumbers
+              }
+              supportInput={
+                supportInput
+              }
+              setSupportInput={
+                setSupportInput
+              }
+              addSupportNumber={
+                addSupportNumber
+              }
+              removeSupportNumber={
+                removeSupportNumber
+              }
+              goBack={() =>
+                setScreen("profile")
+              }
+              busy={busy}
+            )}
+      </View>
+
+      <BottomNavigation
+        screen={screen}
+        setScreen={setScreen}
+        cartCount={cart.length}
+        isAdmin={isAdmin()}
+      />
+
+      {showMaster && (
+        <Modal
+          visible={showMaster}
+          animationType="slide"
+          onRequestClose={() =>
+            setShowMaster(false)
+          }
         >
-          Ari
+          <SafeAreaView
+            style={styles.safe}
+          >
+            <AdminScreen
+              master={master}
+              updateMasterControl={
+                updateMasterControl
+              }
+              product={
+                adminProduct
+              }
+              setProduct={
+                setAdminProduct
+              }
+              images={
+                adminImages
+              }
+              chooseImages={
+                chooseProductImages
+              }
+              takePhoto={
+                takeProductPhoto
+              }
+              createProduct={
+                createProduct
+              }
+              ad={adminAd}
+              setAd={setAdminAd}
+              createAd={createAd}
+              supportNumbers={
+                supportNumbers
+              }
+              supportInput={
+                supportInput
+              }
+              setSupportInput={
+                setSupportInput
+              }
+              addSupportNumber={
+                addSupportNumber
+              }
+              removeSupportNumber={
+                removeSupportNumber
+              }
+              goBack={() =>
+                setShowMaster(false)
+              }
+              busy={busy}
+            />
+          </SafeAreaView>
+        </Modal>
+      )}
+    </SafeAreaView>
+  );
+}
+
+/* =========================================================
+   HOME SCREEN
+   ========================================================= */
+
+function HomeScreen({
+  products,
+  ads,
+  master,
+  category,
+  setCategory,
+  search,
+  setSearch,
+  openProduct,
+  profile,
+  premiumUnlocked,
+  setScreen,
+}) {
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={
+        styles.content
+      }
+    >
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.brand}>
+            Arishop
+          </Text>
+
           <Text
             style={
-              styles.logoAccent
+              styles.headerSubtitle
             }
           >
-            shop
+            Shop smart. Shop easy.
           </Text>
-        </Text>
-      </TouchableOpacity>
+        </View>
 
-      <View
-        style={
-          styles.headerActions
-        }
-      >
-        <TouchableOpacity
-          style={styles.iconButton}
+        <Pressable
+          style={styles.headerCart}
           onPress={() =>
             setScreen("cart")
           }
         >
-          <Text>
-            🛒 {cartCount}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() =>
-            setScreen("profile")
-          }
-        >
-          <Text>👤</Text>
-        </TouchableOpacity>
+          🛒
+        </Pressable>
       </View>
-    </View>
-  );
 
-  /* =======================================================
-     BOTTOM NAVIGATION
-     ======================================================= */
+      <TextInput
+        style={styles.search}
+        placeholder="Search products..."
+        placeholderTextColor="#777"
+        value={search}
+        onChangeText={setSearch}
+      />
 
-  const BottomNav = () => (
-    <View
-      style={styles.bottomNav}
-    >
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() =>
-          setScreen("home")
-        }
-      >
-        <Text>🏠</Text>
-        <Text>Home</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() =>
-          setScreen("cart")
-        }
-      >
-        <Text>🛒</Text>
-        <Text>Cart</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() =>
-          setScreen("orders")
-        }
-      >
-        <Text>📦</Text>
-        <Text>Orders</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() =>
-          setScreen("profile")
-        }
-      >
-        <Text>👤</Text>
-        <Text>You</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  /* =======================================================
-     HOME
-     ======================================================= */
-
-  const HomeScreen = () => (
-    <SafeAreaView
-      style={styles.container}
-    >
-      <Header />
-
-      <ScrollView
-        contentContainerStyle={
-          styles.content
-        }
-      >
-        <TextInput
-          style={styles.search}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="🔍 Search products"
-        />
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={
-            false
-          }
-          style={{
-            marginBottom: 15,
-          }}
-        >
-          {CATEGORIES.map(
-            (item) => (
-              <TouchableOpacity
-                key={item.id}
-                onPress={() =>
-                  setCategory(
-                    item.id
-                  )
-                }
-                style={[
-                  styles.category,
-                  category ===
-                    item.id &&
-                    styles.categoryActive,
-                ]}
-              >
-                <Text
-                  style={
-                    styles.categoryIcon
-                  }
-                >
-                  {item.icon}
-                </Text>
-
-                <Text
-                  style={
-                    styles.categoryText
-                  }
-                >
-                  {item.name}
-                </Text>
-              </TouchableOpacity>
-            )
-          )}
-        </ScrollView>
-
-        <View
-          style={styles.hero}
-        >
-          <Text
-            style={styles.heroTitle}
+      {master.ads &&
+        ads.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={
+              false
+            }
+            style={styles.adScroller}
           >
-            Arishop Mega Deals
-          </Text>
-
-          <Text
-            style={styles.heroSub}
-          >
-            Fashion • Anime • Pants • Shoes • Electronics
-          </Text>
-
-          <Text
-            style={styles.heroSmall}
-          >
-            Standard delivery 1–7 days
-          </Text>
-
-          <Text
-            style={styles.heroSmall}
-          >
-            Fast delivery, where eligible: 1–3 days +₹40
-          </Text>
-        </View>
-
-        <View
-          style={styles.sectionRow}
-        >
-          <Text
-            style={styles.h2}
-          >
-            Products
-          </Text>
-
-          <Text
-            style={styles.muted}
-          >
-            {filteredProducts.length} items
-          </Text>
-        </View>
-
-        <View
-          style={styles.grid}
-        >
-          {filteredProducts.map(
-            (product) => (
+            {ads.map((ad) => (
               <View
-                key={product.id}
-                style={
-                  styles.productCard
-                }
+                key={ad.id}
+                style={styles.adCard}
               >
-                <TouchableOpacity
-                  onPress={() =>
-                    openProduct(
-                      product
-                    )
-                  }
-                >
-                  {product.images?.[0] ? (
-                    <Image
-                      source={{
-                        uri: product
-                          .images[0],
-                      }}
-                      style={
-                        styles.productImage
-                      }
-                    />
-                  ) : (
-                    <View
-                      style={
-                        styles.placeholderImage
-                      }
-                    >
-                      <Text
-                        style={{
-                          fontSize: 45,
-                        }}
-                      >
-                        🛍️
-                      </Text>
-                    </View>
-                  )}
-
-                  <View
-                    style={{
-                      padding: 10,
+                {ad.image ? (
+                  <Image
+                    source={{
+                      uri: ad.image,
                     }}
+                    style={
+                      styles.adImage
+                    }
+                  />
+                ) : (
+                  <View
+                    style={
+                      styles.adImagePlaceholder
+                    }
                   >
                     <Text
-                      numberOfLines={2}
                       style={
-                        styles.productTitle
+                        styles.adEmoji
                       }
                     >
-                      {product.name}
-                    </Text>
-
-                    <Text
-                      numberOfLines={2}
-                      style={
-                        styles.muted
-                      }
-                    >
-                      {
-                        product.description
-                      }
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.rating
-                      }
-                    >
-                      ⭐{" "}
-                      {product.rating ||
-                        "New"}
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.price
-                      }
-                    >
-                      {money(
-                        product.price
-                      )}
-                    </Text>
-
-                    {Number(
-                      product.mrp
-                    ) >
-                      Number(
-                        product.price
-                      ) && (
-                      <Text
-                        style={
-                          styles.mrp
-                        }
-                      >
-                        {money(
-                          product.mrp
-                        )}
-                      </Text>
-                    )}
-
-                    <Text
-                      style={
-                        styles.stock
-                      }
-                    >
-                      {Number(
-                        product.stock
-                      ) > 0
-                        ? `${product.stock} available`
-                        : "Out of stock"}
+                      🛍️
                     </Text>
                   </View>
-                </TouchableOpacity>
+                )}
 
-                <TouchableOpacity
-                  style={[
-                    styles.primary,
-                    Number(
-                      product.stock
-                    ) <= 0 &&
-                      styles.disabled,
-                  ]}
-                  disabled={
-                    Number(
-                      product.stock
-                    ) <= 0
-                  }
-                  onPress={() =>
-                    openProduct(
-                      product
-                    )
+                <View
+                  style={
+                    styles.adTextBox
                   }
                 >
                   <Text
                     style={
-                      styles.primaryText
+                      styles.adTitle
                     }
                   >
-                    View Product
+                    {ad.title}
                   </Text>
-                </TouchableOpacity>
+
+                  <Text
+                    style={
+                      styles.adSubtitle
+                    }
+                  >
+                    {ad.subtitle}
+                  </Text>
+                </View>
               </View>
+            ))}
+          </ScrollView>
+        )}
+
+      <Text style={styles.sectionTitle}>
+        Categories
+      </Text>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={
+          false
+        }
+      >
+        {CATEGORIES.map((item) => {
+          const enabled =
+            categoryEnabled(
+              item.id,
+              master
+            );
+
+          if (
+            item.id !== "all" &&
+            !enabled
+          ) {
+            return null;
+          }
+
+          return (
+            <Pressable
+              key={item.id}
+              onPress={() =>
+                setCategory(
+                  item.id
+                )
+              }
+              style={[
+                styles.categoryButton,
+                category ===
+                  item.id &&
+                  styles.categoryButtonActive,
+              ]}
+            >
+              <Text
+                style={
+                  styles.categoryIcon
+                }
+              >
+                {item.icon}
+              </Text>
+
+              <Text
+                style={
+                  styles.categoryName
+                }
+              >
+                {item.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <View
+        style={
+          styles.specialRow
+        }
+      >
+        {master.weeklyTopCustomer && (
+          <Pressable
+            style={
+              styles.specialCard
+            }
+            onPress={() =>
+              setScreen(
+                "weekly"
+              )
+            }
+          >
+            <Text style={styles.specialEmoji}>
+              🏆
+            </Text>
+
+            <Text
+              style={
+                styles.specialTitle
+              }
+            >
+              Weekly Top Customer
+            </Text>
+
+            <Text
+              style={
+                styles.specialSmall
+              }
+            >
+              ₹2,500+ eligible shopping
+            </Text>
+          </Pressable>
+        )}
+
+        {master.premiumLuxury && (
+          <Pressable
+            style={
+              styles.specialCard
+            }
+            onPress={() =>
+              setScreen(
+                "premium"
+              )
+            }
+          >
+            <Text style={styles.specialEmoji}>
+              👑
+            </Text>
+
+            <Text
+              style={
+                styles.specialTitle
+              }
+            >
+              Premium Luxury
+            </Text>
+
+            <Text
+              style={
+                styles.specialSmall
+              }
+            >
+              ₹5,000 eligible spend
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
+      <Text style={styles.sectionTitle}>
+        {category === "all"
+          ? "All Products"
+          : `${
+              CATEGORIES.find(
+                (x) =>
+                  x.id ===
+                  category
+              )?.name || "Products"
+            }`}
+      </Text>
+
+      {products.length === 0 ? (
+        <View
+          style={
+            styles.emptyBox
+          }
+        >
+          <Text
+            style={
+              styles.emptyEmoji
+            }
+          >
+            📦
+          </Text>
+
+          <Text
+            style={
+              styles.emptyTitle
+            }
+          >
+            अभी कोई product नहीं है
+          </Text>
+
+          <Text
+            style={
+              styles.emptyText
+            }
+          >
+            Admin पहले product add करेगा।
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={
+            styles.productGrid
+          }
+        >
+          {products.map(
+            (product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                openProduct={
+                  openProduct
+                }
+              />
             )
           )}
         </View>
-      </ScrollView>
-
-      <BottomNav />
-    </SafeAreaView>
+      )}
+    </ScrollView>
   );
+}
 
-  /* =======================================================
-     PRODUCT SCREEN
-     ======================================================= */
+/* =========================================================
+   PRODUCT CARD
+   ========================================================= */
 
-  const ProductScreen = () => {
-    if (!selectedProduct) {
-      return <HomeScreen />;
-    }
+function ProductCard({
+  product,
+  openProduct,
+}) {
+  const image =
+    product.images?.[0];
 
-    const fastFee =
-      deliveryMode ===
-      "fast"
-        ? 40
-        : 0;
+  const discount =
+    discountPercent(
+      product.mrp,
+      product.price
+    );
 
-    const total =
-      Number(
-        selectedProduct.price ||
-          0
-      ) + fastFee;
-
-    const colors =
-      selectedProduct.colors ||
-      [];
-
-    const sizes =
-      selectedProduct.sizes ||
-      [];
-
-    return (
-      <SafeAreaView
-        style={styles.container}
-      >
-        <ScrollView
-          contentContainerStyle={
-            styles.content
+  return (
+    <Pressable
+      style={styles.productCard}
+      onPress={() =>
+        openProduct(product)
+      }
+    >
+      {image ? (
+        <Image
+          source={{
+            uri: image,
+          }}
+          style={
+            styles.productImage
+          }
+        />
+      ) : (
+        <View
+          style={
+            styles.productPlaceholder
           }
         >
-          <TouchableOpacity
-            onPress={() =>
-              setScreen("home")
+          <Text
+            style={
+              styles.productPlaceholderEmoji
             }
           >
-            <Text
-              style={styles.back}
-            >
-              ← Back
-            </Text>
-          </TouchableOpacity>
+            🛍️
+          </Text>
+        </View>
+      )}
 
-          {selectedProduct
-            .images?.[0] ? (
-            <Image
-              source={{
-                uri: selectedProduct
-                  .images[0],
-              }}
-              style={
-                styles.detailImage
-              }
-            />
-          ) : (
-            <View
-              style={
-                styles.detailPlaceholder
-              }
-            >
-              <Text
-                style={{
-                  fontSize: 80,
-                }}
-              >
-                🛍️
-              </Text>
-            </View>
-          )}
+      <View
+        style={
+          styles.productInfo
+        }
+      >
+        <Text
+          style={
+            styles.productName
+          }
+          numberOfLines={2}
+        >
+          {product.name}
+        </Text>
 
+        <View
+          style={
+            styles.priceRow
+          }
+        >
           <Text
-            style={styles.h1}
-          >
-            {
-              selectedProduct.name
+            style={
+              styles.price
             }
-          </Text>
-
-          <Text
-            style={styles.rating}
-          >
-            ⭐{" "}
-            {selectedProduct.rating ||
-              "New"}
-          </Text>
-
-          <Text
-            style={styles.price}
           >
             {money(
-              selectedProduct.price
+              product.price
             )}
           </Text>
 
-          {Number(
-            selectedProduct.mrp
-          ) >
-            Number(
-              selectedProduct.price
-            ) && (
+          {product.mrp > product.price && (
             <Text
-              style={styles.mrp}
+              style={
+                styles.mrp
+              }
             >
               {money(
-                selectedProduct.mrp
+                product.mrp
               )}
             </Text>
           )}
+        </View>
 
+        {discount > 0 && (
           <Text
             style={
-              styles.description
+              styles.discount
             }
           >
-            {
-              selectedProduct.description
-            }
+            {discount}% OFF
           </Text>
+        )}
 
-          {colors.length > 0 && (
-            <>
-              <Text
-                style={styles.h2}
-              >
-                Color
-              </Text>
+        <Text
+          style={
+            styles.stock
+          }
+        >
+          {safeNumber(
+            product.stock
+          ) > 0
+            ? "In stock"
+            : "Out of stock"}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
 
-              <View
-                style={styles.chips}
-              >
-                {colors.map(
-                  (color) => (
-                    <TouchableOpacity
-                      key={
-                        color.name
-                      }
-                      disabled={
-                        color.available ===
-                        false
-                      }
-                      onPress={() =>
-                        setSelectedColor(
-                          color.name
-                        )
-                      }
-                      style={[
-                        styles.chip,
-                        selectedColor ===
-                          color.name &&
-                          styles.chipActive,
-                        color.available ===
-                          false &&
-                          styles.chipDisabled,
-                      ]}
-                    >
-                      <Text
-                        style={
-                          selectedColor ===
-                            color.name &&
-                          color.available !==
-                            false
-                            ? styles.chipActiveText
-                            : styles.chipText
-                        }
-                      >
-                        {color.name}
-                        {color.available ===
-                          false
-                          ? " ❌"
-                          : ""}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                )}
-              </View>
-            </>
-          )}
+/* =========================================================
+   PRODUCT SCREEN
+   ========================================================= */
 
-          {sizes.length > 0 && (
-            <>
-              <Text
-                style={styles.h2}
-              >
-                Size
-              </Text>
-
-              <View
-                style={styles.chips}
-              >
-                {sizes.map(
-                  (size) => (
-                    <TouchableOpacity
-                      key={
-                        size.name
-                      }
-                      disabled={
-                        size.available ===
-                        false
-                      }
-                      onPress={() =>
-                        setSelectedSize(
-                          size.name
-                        )
-                      }
-                      style={[
-                        styles.chip,
-                        selectedSize ===
-                          size.name &&
-                          styles.chipActive,
-                      ]}
-                    >
-                      <Text
-                        style={
-                          selectedSize ===
-                            size.name &&
-                          size.available !==
-                            false
-                            ? styles.chipActiveText
-                            : styles.chipText
-                        }
-                      >
-                        {size.name}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                )}
-              </View>
-            </>
-          )}
-
-          <Text
-            style={styles.h2}
-          >
-            Delivery
-          </Text>
-
-          <TouchableOpacity
-            style={[
-              styles.option,
-              deliveryMode ===
-                "standard" &&
-                styles.optionActive,
-            ]}
-            onPress={() =>
-              setDeliveryMode(
-                "standard"
-              )
-            }
-          >
-            <Text>
-              📦 Standard delivery • 1–7 days • Free
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.option,
-              deliveryMode ===
-                "fast" &&
-                styles.optionActive,
-            ]}
-            onPress={() =>
-              setDeliveryMode("fast")
-            }
-          >
-            <Text>
-              ⚡ Fast delivery • 1–3 days • +₹40
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={
-              styles.secondary
-            }
-            onPress={() =>
-              addToCart(
-                selectedProduct,
-                selectedColor,
-                selectedSize
-              )
-            }
-          >
-            <Text
-              style={
-                styles.secondaryText
-              }
-            >
-              🛒 Add to Cart
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.primary}
-            onPress={() => {
-              addToCart(
-                selectedProduct,
-                selectedColor,
-                selectedSize
-              );
-
-              setScreen("cart");
-            }}
-          >
-            <Text
-              style={
-                styles.primaryText
-              }
-            >
-              Buy Now • {money(total)}
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  };
-
-  /* =======================================================
-     CART SCREEN
-     ======================================================= */
-
-  const CartScreen = () => (
-    <SafeAreaView
-      style={styles.container}
+function ProductScreen({
+  product,
+  master,
+  selectedColor,
+  setSelectedColor,
+  selectedSize,
+  setSelectedSize,
+  quantity,
+  setQuantity,
+  addToCart,
+  goBack,
+}) {
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={
+        styles.content
+      }
     >
-      <Header />
+      <Pressable
+        style={styles.backButton}
+        onPress={goBack}
+      >
+        ← Back
+      </Pressable>
 
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={
+          false
+      }
+      >
+        {(product.images?.length
+          ? product.images
+          : [""])
+          .map(
+            (image, index) => (
+              <View
+                key={index}
+                style={
+                  styles.detailImageBox
+                }
+              >
+                {image ? (
+                  <Image
+                    source={{
+                      uri: image,
+                    }}
+                    style={
+                      styles.detailImage
+                    }
+                  />
+                ) : (
+                  <Text
+                    style={
+                      styles.detailPlaceholder
+                    }
+                  >
+                    🛍️
+                  </Text>
+                )}
+              </View>
+            )
+          )}
+      </ScrollView>
+
+      <Text
+        style={
+          styles.detailTitle
+        }
+      >
+        {product.name}
+      </Text>
+
+      <Text
+        style={
+          styles.detailDescription
+        }
+      >
+        {product.description}
+      </Text>
+
+      <View
+        style={
+          styles.detailPriceRow
+        }
+      >
+        <Text
+          style={
+            styles.detailPrice
+          }
+        >
+          {money(product.price)}
+        </Text>
+
+        {product.mrp > product.price && (
+          <Text
+            style={
+              styles.detailMrp
+            }
+          >
+            {money(product.mrp)}
+          </Text>
+        )}
+      </View>
+
+      {product.colors?.length > 0 && (
+        <>
+          <Text
+            style={
+              styles.optionTitle
+            }
+          >
+            Color
+          </Text>
+
+          <View
+            style={
+              styles.optionRow
+            }
+          >
+            {product.colors.map(
+              (color) => (
+                <Pressable
+                  key={color}
+                  onPress={() =>
+                    setSelectedColor(
+                      color
+                    )
+                  }
+                  style={[
+                    styles.option,
+                    selectedColor ===
+                      color &&
+                      styles.optionActive,
+                  ]}
+                >
+                  <Text>
+                    {color}
+                  </Text>
+                </Pressable>
+              )
+            )}
+          </View>
+        </>
+      )}
+
+      {product.sizes?.length > 0 && (
+        <>
+          <Text
+            style={
+              styles.optionTitle
+            }
+          >
+            Size
+          </Text>
+
+          <View
+            style={
+              styles.optionRow
+            }
+          >
+            {product.sizes.map(
+              (size) => (
+                <Pressable
+                  key={size}
+                  onPress={() =>
+                    setSelectedSize(
+                      size
+                    )
+                  }
+                  style={[
+                    styles.option,
+                    selectedSize ===
+                      size &&
+                      styles.optionActive,
+                  ]}
+                >
+                  <Text>
+                    {size}
+                  </Text>
+                </Pressable>
+              )
+            )}
+          </View>
+        </>
+      )}
+
+      <Text
+        style={
+          styles.optionTitle
+        }
+      >
+        Quantity
+      </Text>
+
+      <View
+        style={
+          styles.quantityRow
+        }
+      >
+        <Pressable
+          style={
+            styles.quantityButton
+          }
+          onPress={() =>
+            setQuantity(
+              Math.max(
+                1,
+                quantity - 1
+              )
+            )
+          }
+        >
+          −
+        </Pressable>
+
+        <Text
+          style={
+            styles.quantityText
+          }
+        >
+          {quantity}
+        </Text>
+
+        <Pressable
+          style={
+            styles.quantityButton
+          }
+          onPress={() =>
+            setQuantity(
+              quantity + 1
+            )
+          }
+        >
+          +
+        </Pressable>
+      </View>
+
+      <View
+        style={
+          styles.deliveryInfo
+        }
+      >
+        {master.standardDelivery && (
+          <Text>
+            🚚 Standard Delivery: 1–7 days
+          </Text>
+        )}
+
+        {master.fastDelivery && (
+          <Text>
+            ⚡ Fast Delivery: 1–3 days, +₹40
+          </Text>
+        )}
+
+        {master.cod && (
+          <Text>
+            💵 Cash on Delivery available
+          </Text>
+        )}
+
+        {master.upi && (
+          <Text>
+            📲 UPI payment available
+          </Text>
+        )}
+      </View>
+
+      <Pressable
+        style={
+          styles.primaryButton
+        }
+        onPress={addToCart}
+      >
+        <Text
+          style={
+            styles.primaryButtonText
+          }
+        >
+          Add to Cart
+        </Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+/* =========================================================
+   CART SCREEN
+   ========================================================= */
+
+function CartScreen({
+  cart,
+  cartTotal,
+  removeFromCart,
+  changeCartQuantity,
+  checkout,
+  goBack,
+}) {
+  return (
+    <View
+      style={styles.screen}
+    >
       <ScrollView
         contentContainerStyle={
           styles.content
         }
       >
-        <Text
-          style={styles.h1}
+        <Pressable
+          style={styles.backButton}
+          onPress={goBack}
         >
-          Your Cart
+          ← Home
+        </Pressable>
+
+        <Text
+          style={
+            styles.pageTitle
+          }
+        >
+          My Cart
         </Text>
 
-        {!cartDetailed.length ? (
+        {cart.length === 0 ? (
           <View
-            style={styles.empty}
+            style={
+              styles.emptyBox
+            }
           >
             <Text
               style={
-                styles.emptyIcon
+                styles.emptyEmoji
               }
             >
               🛒
@@ -2253,38 +2698,23 @@ export default function App() {
             >
               Cart खाली है
             </Text>
-
-            <TouchableOpacity
-              style={styles.primary}
-              onPress={() =>
-                setScreen("home")
-              }
-            >
-              <Text
-                style={
-                  styles.primaryText
-                }
-              >
-                Shopping शुरू करें
-              </Text>
-            </TouchableOpacity>
           </View>
         ) : (
           <>
-            {cartDetailed.map(
+            {cart.map(
               (item) => (
                 <View
-                  key={item.id}
+                  key={
+                    item.cartId
+                  }
                   style={
-                    styles.cartRow
+                    styles.cartItem
                   }
                 >
-                  {item.product
-                    .images?.[0] ? (
+                  {item.image ? (
                     <Image
                       source={{
-                        uri: item.product
-                          .images[0],
+                        uri: item.image,
                       }}
                       style={
                         styles.cartImage
@@ -2293,104 +2723,92 @@ export default function App() {
                   ) : (
                     <View
                       style={
-                        styles.cartPlaceholder
+                        styles.cartImagePlaceholder
                       }
                     >
-                      <Text>🛍️</Text>
+                      🛍️
                     </View>
                   )}
 
                   <View
-                    style={{
-                      flex: 1,
-                    }}
+                    style={
+                      styles.cartMiddle
+                    }
                   >
                     <Text
                       style={
-                        styles.productTitle
+                        styles.cartName
                       }
                     >
-                      {
-                        item.product
-                          .name
-                      }
+                      {item.name}
                     </Text>
 
-                    <Text
-                      style={
-                        styles.muted
-                      }
-                    >
-                      {item.color
-                        ? `Color: ${item.color}`
-                        : ""}
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.muted
-                      }
-                    >
-                      {item.size
-                        ? `Size: ${item.size}`
-                        : ""}
-                    </Text>
-
-                    <Text
-                      style={styles.price}
-                    >
+                    <Text>
                       {money(
-                        item.product
-                          .price
+                        item.price
                       )}
                     </Text>
 
+                    {item.color && (
+                      <Text>
+                        Color: {item.color}
+                      </Text>
+                    )}
+
+                    {item.size && (
+                      <Text>
+                        Size: {item.size}
+                      </Text>
+                    )}
+
                     <View
                       style={
-                        styles.qtyRow
+                        styles.cartQuantity
                       }
                     >
-                      <TouchableOpacity
-                        style={
-                          styles.qtyButton
-                        }
+                      <Pressable
                         onPress={() =>
-                          changeCartQty(
-                            item.id,
+                          changeCartQuantity(
+                            item.cartId,
                             -1
                           )
                         }
                       >
-                        <Text>
-                          −
-                        </Text>
-                      </TouchableOpacity>
+                        −
+                      </Pressable>
 
-                      <Text
-                        style={
-                          styles.qtyText
-                        }
-                      >
-                        {item.qty}
+                      <Text>
+                        {item.quantity}
                       </Text>
 
-                      <TouchableOpacity
-                        style={
-                          styles.qtyButton
-                        }
+                      <Pressable
                         onPress={() =>
-                          changeCartQty(
-                            item.id,
+                          changeCartQuantity(
+                            item.cartId,
                             1
                           )
                         }
                       >
-                        <Text>
-                          +
-                        </Text>
-                      </TouchableOpacity>
+                        +
+                      </Pressable>
                     </View>
                   </View>
+
+                  <Pressable
+                    onPress={() =>
+                      removeFromCart(
+                        item.cartId
+                      )
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.deleteText
+                      }
+                    >
+                      Delete
+                    </Text>
+                  </Pressable>
                 </View>
               )
             )}
@@ -2401,198 +2819,134 @@ export default function App() {
               }
             >
               <Text
-                style={styles.h2}
+                style={
+                  styles.totalLabel
+                }
               >
-                Total
+                Subtotal
               </Text>
 
               <Text
-                style={styles.price}
+                style={
+                  styles.totalValue
+                }
               >
                 {money(cartTotal)}
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.primary}
-              onPress={() =>
-                setScreen(
-                  "checkout"
-                )
+            <Pressable
+              style={
+                styles.primaryButton
               }
+              onPress={checkout}
             >
               <Text
                 style={
-                  styles.primaryText
+                  styles.primaryButtonText
                 }
               >
-                Proceed to Checkout
+                Checkout
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </>
         )}
       </ScrollView>
-
-      <BottomNav />
-    </SafeAreaView>
+    </View>
   );
+}
 
-  /* =======================================================
-     CHECKOUT
-     ======================================================= */
+/* =========================================================
+   CHECKOUT
+   ========================================================= */
 
-  const CheckoutScreen = () => {
-    const deliveryFee =
-      deliveryMode ===
-      "fast"
-        ? 40
-        : 0;
+function CheckoutScreen({
+  cartTotal,
+  address,
+  setAddress,
+  paymentMethod,
+  setPaymentMethod,
+  deliveryMode,
+  setDeliveryMode,
+  master,
+  placeOrder,
+  busy,
+  goBack,
+}) {
+  const deliveryFee =
+    deliveryMode === "fast"
+      ? 40
+      : 0;
 
-    const total =
-      cartTotal +
-      deliveryFee;
+  const total =
+    cartTotal +
+    deliveryFee;
 
-    return (
-      <SafeAreaView
-        style={styles.container}
+  return (
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={
+        Platform.OS ===
+        "ios"
+          ? "padding"
+          : undefined
+      }
+    >
+      <ScrollView
+        contentContainerStyle={
+          styles.content
+        }
       >
-        <ScrollView
-          contentContainerStyle={
-            styles.content
+        <Pressable
+          style={styles.backButton}
+          onPress={goBack}
+        >
+          ← Cart
+        </Pressable>
+
+        <Text
+          style={
+            styles.pageTitle
           }
         >
-          <TouchableOpacity
-            onPress={() =>
-              setScreen("cart")
-            }
-          >
-            <Text
-              style={styles.back}
-            >
-              ← Cart
-            </Text>
-          </TouchableOpacity>
+          Checkout
+        </Text>
 
-          <Text
-            style={styles.h1}
-          >
-            Checkout
-          </Text>
+        <Text
+          style={
+            styles.optionTitle
+          }
+        >
+          Delivery Address
+        </Text>
 
-          <View
-            style={styles.card}
-          >
-            <Text
-              style={styles.h2}
-            >
-              Order Summary
-            </Text>
+        <TextInput
+          style={
+            styles.largeInput
+          }
+          placeholder="पूरा delivery address"
+          multiline
+          value={address}
+          onChangeText={
+            setAddress
+          }
+        />
 
-            <Text
-              style={styles.muted}
-            >
-              Products:{" "}
-              {money(cartTotal)}
-            </Text>
+        <Text
+          style={
+            styles.optionTitle
+          }
+        >
+          Delivery
+        </Text>
 
-            <Text
-              style={styles.muted}
-            >
-              Delivery:{" "}
-              {money(deliveryFee)}
-            </Text>
-
-            <Text
-              style={styles.price}
-            >
-              Total:{" "}
-              {money(total)}
-            </Text>
-          </View>
-
-          <Text
-            style={styles.h2}
-          >
-            Delivery Address
-          </Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Full name"
-            value={address.name}
-            onChangeText={(value) =>
-              setAddress((old) => ({
-                ...old,
-                name: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="10-digit phone"
-            keyboardType="phone-pad"
-            maxLength={10}
-            value={address.phone}
-            onChangeText={(value) =>
-              setAddress((old) => ({
-                ...old,
-                phone: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="House / Street / Area"
-            multiline
-            value={address.address}
-            onChangeText={(value) =>
-              setAddress((old) => ({
-                ...old,
-                address: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="City"
-            value={address.city}
-            onChangeText={(value) =>
-              setAddress((old) => ({
-                ...old,
-                city: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="6-digit Pincode"
-            keyboardType="numeric"
-            maxLength={6}
-            value={address.pincode}
-            onChangeText={(value) =>
-              setAddress((old) => ({
-                ...old,
-                pincode: value,
-              }))
-            }
-          />
-
-          <Text
-            style={styles.h2}
-          >
-            Delivery
-          </Text>
-
-          <TouchableOpacity
+        {master.standardDelivery && (
+          <Pressable
             style={[
-              styles.option,
+              styles.selectRow,
               deliveryMode ===
                 "standard" &&
-                styles.optionActive,
+                styles.selectActive,
             ]}
             onPress={() =>
               setDeliveryMode(
@@ -2601,1150 +2955,3149 @@ export default function App() {
             }
           >
             <Text>
-              📦 Standard • 1–7 days • Free
+              🚚 Standard — 1–7 days
             </Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
+            <Text>
+              FREE
+            </Text>
+          </Pressable>
+        )}
+
+        {master.fastDelivery && (
+          <Pressable
             style={[
-              styles.option,
+              styles.selectRow,
               deliveryMode ===
                 "fast" &&
-                styles.optionActive,
+                styles.selectActive,
             ]}
             onPress={() =>
-              setDeliveryMode("fast")
+              setDeliveryMode(
+                "fast"
+              )
             }
           >
             <Text>
-              ⚡ Fast • 1–3 days • +₹40
+              ⚡ Fast — 1–3 days
             </Text>
-          </TouchableOpacity>
 
-          <Text
-            style={styles.h2}
+            <Text>
+              +₹40
+            </Text>
+          </Pressable>
+        )}
+
+        <Text
+          style={
+            styles.optionTitle
+          }
+        >
+          Payment
+        </Text>
+
+        {master.cod && (
+          <Pressable
+            style={[
+              styles.selectRow,
+              paymentMethod ===
+                "COD" &&
+                styles.selectActive,
+            ]}
+            onPress={() =>
+              setPaymentMethod(
+                "COD"
+              )
+            }
           >
-            Payment
+            <Text>
+              💵 Cash on Delivery
+            </Text>
+          </Pressable>
+        )}
+
+        {master.upi && (
+          <Pressable
+            style={[
+              styles.selectRow,
+              paymentMethod ===
+                "UPI" &&
+                styles.selectActive,
+            ]}
+            onPress={() =>
+              setPaymentMethod(
+                "UPI"
+              )
+            }
+          >
+            <Text>
+              📲 UPI
+            </Text>
+          </Pressable>
+        )}
+
+        <View
+          style={
+            styles.totalBox
+          }
+        >
+          <Text
+            style={
+              styles.totalLabel
+            }
+          >
+            Total
           </Text>
 
-          <TouchableOpacity
-            style={styles.primary}
-            onPress={
-              placeCODOrder
+          <Text
+            style={
+              styles.totalValue
             }
-            disabled={busy}
           >
-            {busy ? (
-              <ActivityIndicator
-                color="#fff"
-              />
-            ) : (
+            {money(total)}
+          </Text>
+        </View>
+
+        <Pressable
+          style={[
+            styles.primaryButton,
+            busy &&
+              styles.disabledButton,
+          ]}
+          disabled={busy}
+          onPress={placeOrder}
+        >
+          <Text
+            style={
+              styles.primaryButtonText
+            }
+          >
+            {busy
+              ? "Placing..."
+              : "Place Order"}
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+/* =========================================================
+   ORDERS
+   ========================================================= */
+
+function OrdersScreen({
+  orders,
+  master,
+  requestCancellation,
+  requestRefund,
+  goBack,
+}) {
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={
+        styles.content
+      }
+    >
+      <Pressable
+        style={styles.backButton}
+        onPress={goBack}
+      >
+        ← Home
+      </Pressable>
+
+      <Text
+        style={
+          styles.pageTitle
+        }
+      >
+        My Orders
+      </Text>
+
+      {orders.length === 0 ? (
+        <View
+          style={
+            styles.emptyBox
+          }
+        >
+          <Text
+            style={
+              styles.emptyEmoji
+            }
+          >
+            📦
+          </Text>
+
+          <Text
+            style={
+              styles.emptyTitle
+            }
+          >
+            अभी कोई order नहीं है
+          </Text>
+        </View>
+      ) : (
+        orders.map(
+          (order) => (
+            <View
+              key={order.id}
+              style={
+                styles.orderCard
+              }
+            >
               <Text
                 style={
-                  styles.primaryText
+                  styles.orderId
                 }
               >
-                Cash on Delivery •{" "}
-                {money(total)}
+                Order #{order.id.slice(
+                  0,
+                  8
+                )}
               </Text>
-            )}
-          </TouchableOpacity>
 
-          <View
-            style={styles.warning}
+              <Text>
+                Status:{" "}
+                {order.status ||
+                  "PLACED"}
+              </Text>
+
+              <Text>
+                Tracking:{" "}
+                {order.trackingStatus ||
+                  "ORDER_PLACED"}
+              </Text>
+
+              <Text>
+                Payment:{" "}
+                {order.paymentMethod}
+              </Text>
+
+              <Text
+                style={
+                  styles.orderAmount
+                }
+              >
+                {money(
+                  order.total
+                )}
+              </Text>
+
+              <Text>
+                Delivery:{" "}
+                {order.deliveryMode ===
+                "fast"
+                  ? "1–3 days"
+                  : "1–7 days"}
+              </Text>
+
+              {order.cancellationStatus ===
+              "REQUESTED" && (
+                <Text
+                  style={
+                    styles.warningText
+                  }
+                >
+                  Cancellation requested
+                </Text>
+              )}
+
+              {order.refundStatus ===
+              "REQUESTED" && (
+                <Text
+                  style={
+                    styles.warningText
+                  }
+                >
+                  Refund requested
+                </Text>
+              )}
+
+              {master.cancellation &&
+                order.status ===
+                  "PLACED" &&
+                order.cancellationStatus !==
+                  "REQUESTED" && (
+                  <Pressable
+                    style={
+                      styles.secondaryButton
+                    }
+                    onPress={() =>
+                      requestCancellation(
+                        order
+                      )
+                    }
+                  >
+                    <Text>
+                      Request Cancellation
+                    </Text>
+                  </Pressable>
+                )}
+
+              {master.refunds &&
+                order.status ===
+                  "DELIVERED" &&
+                order.refundStatus !==
+                  "REQUESTED" && (
+                  <Pressable
+                    style={
+                      styles.secondaryButton
+                    }
+                    onPress={() =>
+                      requestRefund(
+                        order
+                      )
+                    }
+                  >
+                    <Text>
+                      Request Refund
+                    </Text>
+                  </Pressable>
+                )}
+            </View>
+          )
+        )
+      )}
+    </ScrollView>
+  );
+}
+
+/* =========================================================
+   PROFILE
+   ========================================================= */
+
+function ProfileScreen({
+  firebaseUser,
+  profile,
+  setProfile,
+  loginMode,
+  setLoginMode,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  name,
+  setName,
+  phone,
+  setPhone,
+  loginOrSignup,
+  logout,
+  saveProfile,
+  busy,
+  setScreen,
+  isAdmin,
+  openAIHelp,
+}) {
+  if (!firebaseUser) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.screen}
+        behavior={
+          Platform.OS ===
+          "ios"
+            ? "padding"
+            : undefined
+        }
+      >
+        <ScrollView
+          contentContainerStyle={
+            styles.content
+          }
+        >
+          <Text
+            style={
+              styles.pageTitle
+            }
+          >
+            {loginMode ===
+            "login"
+              ? "Login"
+              : "Create Account"}
+          </Text>
+
+          {loginMode ===
+            "signup" && (
+            <>
+              <TextInput
+                style={
+                  styles.input
+                }
+                placeholder="Name"
+                value={name}
+                onChangeText={
+                  setName
+                }
+              />
+
+              <TextInput
+                style={
+                  styles.input
+                }
+                placeholder="Phone"
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={
+                  setPhone
+                }
+              />
+            </>
+          )}
+
+          <TextInput
+            style={
+              styles.input
+            }
+            placeholder="Email"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={
+              setEmail
+            }
+          />
+
+          <TextInput
+            style={
+              styles.input
+            }
+            placeholder="Password"
+            secureTextEntry
+            value={password}
+            onChangeText={
+              setPassword
+            }
+          />
+
+          <Pressable
+            style={
+              styles.primaryButton
+            }
+            onPress={
+              loginOrSignup
+            }
           >
             <Text
-              style={{
-                color: "#92400e",
-              }}
+              style={
+                styles.primaryButtonText
+              }
             >
-              Online payment अभी बंद है। Real payment gateway और server-side verification जोड़ने के बाद ही online payment enable करेंगे।
+              {busy
+                ? "Please wait..."
+                : loginMode ===
+                  "login"
+                ? "Login"
+                : "Create Account"}
             </Text>
-          </View>
+          </Pressable>
+
+          <Pressable
+            style={
+              styles.secondaryButton
+            }
+            onPress={() =>
+              setLoginMode(
+                loginMode ===
+                  "login"
+                  ? "signup"
+                  : "login"
+              )
+            }
+          >
+            <Text>
+              {loginMode ===
+              "login"
+                ? "Create new account"
+                : "Already have an account? Login"}
+            </Text>
+          </Pressable>
         </ScrollView>
-      </SafeAreaView>
+      </KeyboardAvoidingView>
     );
-  };
+  }
 
-  /* =======================================================
-     ORDERS
-     ======================================================= */
-
-  const OrdersScreen = () => (
-    <SafeAreaView
-      style={styles.container}
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={
+        styles.content
+      }
     >
-      <Header />
+      <Text
+        style={
+          styles.pageTitle
+        }
+      >
+        Profile
+      </Text>
 
-      <ScrollView
-        contentContainerStyle={
-          styles.content
+      <View
+        style={
+          styles.profileCard
         }
       >
         <Text
-          style={styles.h1}
+          style={
+            styles.profileAvatar
+          }
         >
-          My Orders
+          👤
         </Text>
 
-        {!orders.length ? (
-          <View
-            style={styles.empty}
+        <Text
+          style={
+            styles.profileEmail
+          }
+        >
+          {firebaseUser.email}
+        </Text>
+
+        <Text>
+          Role:{" "}
+          {isAdmin()
+            ? "Master Admin"
+            : "Customer"}
+        </Text>
+      </View>
+
+      <Text
+        style={
+          styles.optionTitle
+        }
+      >
+        Name
+      </Text>
+
+      <TextInput
+        style={
+          styles.input
+        }
+        value={profile.name}
+        onChangeText={(value) =>
+          setProfile({
+            ...profile,
+            name: value,
+          })
+        }
+      />
+
+      <Text
+        style={
+          styles.optionTitle
+        }
+      >
+        Phone
+      </Text>
+
+      <TextInput
+        style={
+          styles.input
+        }
+        value={profile.phone}
+        onChangeText={(value) =>
+          setProfile({
+            ...profile,
+            phone: value,
+          })
+        }
+      />
+
+      <View
+        style={
+          styles.profileStats
+        }
+      >
+        <View
+          style={
+            styles.statCard
+          }
+        >
+          <Text style={styles.statEmoji}>
+            🪙
+          </Text>
+
+          <Text
+            style={
+              styles.statValue
+            }
           >
-            <Text
-              style={
-                styles.emptyIcon
-              }
-            >
-              📦
-            </Text>
+            {profile.coins || 0}
+          </Text>
 
-            <Text
+          <Text>
+            Coins
+          </Text>
+        </View>
+
+        <View
+          style={
+            styles.statCard
+          }
+        >
+          <Text style={styles.statEmoji}>
+            💰
+          </Text>
+
+          <Text
+            style={
+              styles.statValue
+            }
+          >
+            {money(
+              profile.eligibleSpend
+            )}
+          </Text>
+
+          <Text>
+            Eligible Spend
+          </Text>
+        </View>
+      </View>
+
+      <Pressable
+        style={
+          styles.primaryButton
+        }
+        onPress={
+          saveProfile
+        }
+      >
+        <Text
+          style={
+            styles.primaryButtonText
+          }
+        >
+          Save Profile
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={
+          styles.menuButton
+        }
+        onPress={() =>
+          setScreen(
+            "orders"
+          )
+        }
+      >
+        📦 My Orders
+      </Pressable>
+
+      <Pressable
+        style={
+          styles.menuButton
+        }
+        onPress={() =>
+          setScreen(
+            "weekly"
+          )
+        }
+      >
+        🏆 Weekly Top Customer
+      </Pressable>
+
+      <Pressable
+        style={
+          styles.menuButton
+        }
+        onPress={() =>
+          setScreen(
+            "premium"
+          )
+        }
+      >
+        👑 Premium Luxury
+      </Pressable>
+
+      <Pressable
+        style={
+          styles.menuButton
+        }
+        onPress={
+          openAIHelp
+        }
+      >
+        🤖 AI Customer Care
+      </Pressable>
+
+      {isAdmin() && (
+        <Pressable
+          style={
+            styles.adminButton
+          }
+          onPress={() =>
+            setScreen(
+              "admin"
+            )
+          }
+        >
+          ⚙️ Master Control / Admin
+        </Pressable>
+      )}
+
+      <Pressable
+        style={
+          styles.logoutButton
+        }
+        onPress={logout}
+      >
+        Logout
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+/* =========================================================
+   WEEKLY CUSTOMER
+   ========================================================= */
+
+function WeeklyCustomerScreen({
+  customers,
+  master,
+  goBack,
+}) {
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={
+        styles.content
+      }
+    >
+      <Pressable
+        style={styles.backButton}
+        onPress={goBack}
+      >
+        ← Home
+      </Pressable>
+
+      <Text
+        style={
+          styles.pageTitle
+        }
+      >
+        🏆 Weekly Top Customer
+      </Text>
+
+      <Text
+        style={
+          styles.descriptionBox
+        }
+      >
+        ₹2,500 या उससे अधिक eligible shopping वाले customers इस section के लिए eligible हो सकते हैं। Refund/cancellation पूरी तरह समाप्त होने के बाद ही final eligibility तय करनी चाहिए।
+      </Text>
+
+      {!master.weeklyTopCustomer ? (
+        <View
+          style={
+            styles.emptyBox
+          }
+        >
+          <Text>
+            Weekly Top Customer अभी बंद है।
+          </Text>
+        </View>
+      ) : customers.length ===
+        0 ? (
+        <View
+          style={
+            styles.emptyBox
+          }
+        >
+          <Text
+            style={
+              styles.emptyTitle
+            }
+          >
+            अभी weekly customer data नहीं है।
+          </Text>
+        </View>
+      ) : (
+        customers.map(
+          (customer, index) => (
+            <View
+              key={
+                customer.id
+              }
               style={
-                styles.emptyTitle
+                styles.customerCard
               }
             >
-              अभी कोई order नहीं है
-            </Text>
-          </View>
-        ) : (
-          orders.map(
-            (order) => (
-              <View
-                key={order.id}
-                style={styles.card}
+              <Text
+                style={
+                  styles.rank
+                }
               >
-                <Text
-                  style={
-                    styles.productTitle
-                  }
-                >
-                  Order #{order.id}
-                </Text>
+                #{index + 1}
+              </Text>
 
-                <Text
-                  style={styles.muted}
-                >
-                  Status:{" "}
-                  {order.status ||
-                    "PLACED"}
-                </Text>
-
-                <Text
-                  style={styles.muted}
-                >
-                  Payment:{" "}
-                  {order.paymentMode ||
-                    "COD"}
-                </Text>
-
-                <Text
-                  style={styles.price}
-                >
-                  {money(
-                    order.total
-                  )}
-                </Text>
-
-                <TouchableOpacity
-                  style={
-                    styles.secondary
-                  }
-                  onPress={() =>
-                    Alert.alert(
-                      "Refund / Cancellation",
-                      "Refund/cancellation को अभी backend workflow से connect करना बाकी है। App झूठा success नहीं दिखाएगा।"
-                    )
-                  }
-                >
-                  <Text
+              <View
+                style={
+                  styles.customerInfo
+                }
+              >
+                {customer.photo ? (
+                  <Image
+                    source={{
+                      uri: customer.photo,
+                    }}
                     style={
-                      styles.secondaryText
+                      styles.customerPhoto
+                    }
+                  />
+                ) : (
+                  <View
+                    style={
+                      styles.customerPhotoPlaceholder
                     }
                   >
-                    Request Cancellation / Refund
+                    👤
+                  </View>
+                )}
+
+                <View>
+                  <Text
+                    style={
+                      styles.customerName
+                    }
+                  >
+                    {customer.name ||
+                      "Customer"}
                   </Text>
-                </TouchableOpacity>
+
+                  <Text>
+                    Eligible spend:{" "}
+                    {money(
+                      customer.eligibleSpend
+                    )}
+                  </Text>
+
+                  {customer.instagramConsent &&
+                    customer.instagram && (
+                      <Text>
+                        Instagram:{" "}
+                        {customer.instagram}
+                      </Text>
+                    )}
+                </View>
               </View>
+            </View>
+          )
+        )
+      )}
+    </ScrollView>
+  );
+}
+
+/* =========================================================
+   PREMIUM
+   ========================================================= */
+
+function PremiumScreen({
+  products,
+  unlocked,
+  master,
+  openProduct,
+  goBack,
+}) {
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={
+        styles.content
+      }
+    >
+      <Pressable
+        style={styles.backButton}
+        onPress={goBack}
+      >
+        ← Home
+      </Pressable>
+
+      <Text
+        style={
+          styles.pageTitle
+        }
+      >
+        👑 Premium Luxury
+      </Text>
+
+      {!master.premiumLuxury ? (
+        <View
+          style={
+            styles.emptyBox
+          }
+        >
+          <Text>
+            Premium Luxury अभी Master Control से OFF है।
+          </Text>
+        </View>
+      ) : !unlocked ? (
+        <View
+          style={
+            styles.premiumLock
+          }
+        >
+          <Text
+            style={
+              styles.premiumLockEmoji
+            }
+          >
+            🔒
+          </Text>
+
+          <Text
+            style={
+              styles.premiumLockTitle
+            }
+          >
+            Premium Locked
+          </Text>
+
+          <Text
+            style={
+              styles.premiumLockText
+            }
+          >
+            ₹5,000 eligible spend पूरा होने पर Premium Luxury unlock होगा।
+          </Text>
+        </View>
+      ) : products.length ===
+        0 ? (
+        <View
+          style={
+            styles.emptyBox
+          }
+        >
+          <Text>
+            अभी Premium products नहीं हैं।
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={
+            styles.productGrid
+          }
+        >
+          {products.map(
+            (product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                openProduct={
+                  openProduct
+                }
+              />
             )
+          )}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+/* =========================================================
+   AI CUSTOMER CARE
+   ========================================================= */
+
+function AICustomerCare({
+  supportNumbers,
+  master,
+  goBack,
+}) {
+  const [problem, setProblem] =
+    useState("");
+
+  const [solved, setSolved] =
+    useState(false);
+
+  const [needsHuman, setNeedsHuman] =
+    useState(false);
+
+  function solveProblem() {
+    const text =
+      problem.trim().toLowerCase();
+
+    if (!text) {
+      Alert.alert(
+        "Problem",
+        "अपनी समस्या लिखो।"
+      );
+      return;
+    }
+
+    setSolved(true);
+
+    if (
+      text.includes("refund") ||
+      text.includes("रिफंड")
+    ) {
+      Alert.alert(
+        "AI Customer Care",
+        "Refund request Orders section से भेज सकते हैं। सामान्य target 24–48 घंटे है; actual provider/bank timing अलग हो सकती है।"
+      );
+    } else if (
+      text.includes("cancel") ||
+      text.includes("cancellation") ||
+      text.includes("कैंसल")
+    ) {
+      Alert.alert(
+        "AI Customer Care",
+        "अगर cancellation enabled है और order eligible है, Orders section में cancellation request भेजें।"
+      );
+    } else if (
+      text.includes("order") ||
+      text.includes("ऑर्डर")
+    ) {
+      Alert.alert(
+        "AI Customer Care",
+        "Orders section में जाकर order status और tracking status देख सकते हैं।"
+      );
+    } else if (
+      text.includes("payment") ||
+      text.includes("पेमेंट")
+    ) {
+      Alert.alert(
+        "AI Customer Care",
+        "Payment method checkout में दिखाई देगा, जो Admin ने ON रखा होगा।"
+      );
+    } else {
+      Alert.alert(
+        "AI Customer Care",
+        "मैंने आपकी समस्या समझने की कोशिश की। अगर यह समाधान नहीं हुआ तो Human Customer Care विकल्प इस्तेमाल करें।"
+      );
+    }
+  }
+
+  function contactHuman() {
+    if (!master.aiCustomerCare) {
+      return;
+    }
+
+    setNeedsHuman(true);
+  }
+
+  const number =
+    supportNumbers?.[0];
+
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={
+        styles.content
+      }
+    >
+      <Pressable
+        style={styles.backButton}
+        onPress={goBack}
+      >
+        ← Profile
+      </Pressable>
+
+      <Text
+        style={
+          styles.pageTitle
+        }
+      >
+        🤖 AI Customer Care
+      </Text>
+
+      <Text
+        style={
+          styles.descriptionBox
+        }
+      >
+        पहले अपनी समस्या AI को बताइए। Human support number तभी दिखाया जाएगा जब AI solution पर्याप्त न हो।
+      </Text>
+
+      <TextInput
+        style={
+          styles.largeInput
+        }
+        placeholder="अपनी समस्या यहाँ लिखें..."
+        multiline
+        value={problem}
+        onChangeText={
+          setProblem
+        }
+      />
+
+      <Pressable
+        style={
+          styles.primaryButton
+        }
+        onPress={
+          solveProblem
+        }
+      >
+        <Text
+          style={
+            styles.primaryButtonText
+          }
+        >
+          AI से पूछें
+        </Text>
+      </Pressable>
+
+      {solved && (
+        <Pressable
+          style={
+            styles.secondaryButton
+          }
+          onPress={
+            contactHuman
+          }
+        >
+          <Text>
+            समस्या अभी भी हल नहीं हुई — Human Support
+          </Text>
+        </Pressable>
+      )}
+
+      {needsHuman && (
+        <View
+          style={
+            styles.supportBox
+          }
+        >
+          <Text
+            style={
+              styles.supportTitle
+            }
+          >
+            Human Customer Care
+          </Text>
+
+          {number ? (
+            <Text
+              style={
+                styles.supportNumber
+              }
+            >
+              📞 {number}
+            </Text>
+          ) : (
+            <Text>
+              अभी कोई support number configured नहीं है।
+            </Text>
+          )}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+/* =========================================================
+   ADMIN / MASTER CONTROL
+   ========================================================= */
+
+function AdminScreen({
+  master,
+  updateMasterControl,
+  product,
+  setProduct,
+  images,
+  chooseImages,
+  takePhoto,
+  createProduct,
+  ad,
+  setAd,
+  createAd,
+  supportNumbers,
+  supportInput,
+  setSupportInput,
+  addSupportNumber,
+  removeSupportNumber,
+  goBack,
+  busy,
+}) {
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={
+        styles.content
+      }
+    >
+      <Pressable
+        style={styles.backButton}
+        onPress={goBack}
+      >
+        ← Back
+      </Pressable>
+
+      <Text
+        style={
+          styles.adminTitle
+        }
+      >
+        ⚙️ Master Control
+      </Text>
+
+      <Text
+        style={
+          styles.descriptionBox
+        }
+      >
+        यहाँ से पूरा Arishop system ON/OFF किया जा सकता है। OFF करने पर app में वह feature/category दिखाई नहीं जाएगी।
+      </Text>
+
+      <Text
+        style={
+          styles.sectionTitle
+        }
+      >
+        Category Controls
+      </Text>
+
+      {[
+        "electronics",
+        "men",
+        "women",
+        "tshirts",
+        "shirts",
+        "pants",
+        "anime",
+        "shoes",
+        "accessories",
+        "other",
+      ].map((key) => (
+        <ControlRow
+          key={key}
+          title={
+            CATEGORIES.find(
+              (item) =>
+                item.id === key
+            )?.name || key
+          }
+          icon={
+            CATEGORIES.find(
+              (item) =>
+                item.id === key
+            )?.icon || "📦"
+          }
+          value={
+            master[key] !== false
+          }
+          onChange={(value) =>
+            updateMasterControl(
+              key,
+              value
+            )
+          }
+        />
+      ))}
+
+      <Text
+        style={
+          styles.sectionTitle
+        }
+      >
+        Special Sections
+      </Text>
+
+      <ControlRow
+        title="Weekly Top Customer"
+        icon="🏆"
+        value={
+          master.weeklyTopCustomer
+        }
+        onChange={(value) =>
+          updateMasterControl(
+            "weeklyTopCustomer",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Premium Luxury"
+        icon="👑"
+        value={
+          master.premiumLuxury
+        }
+        onChange={(value) =>
+          updateMasterControl(
+            "premiumLuxury",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Ads / Banners"
+        icon="📢"
+        value={master.ads}
+        onChange={(value) =>
+          updateMasterControl(
+            "ads",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Coins"
+        icon="🪙"
+        value={master.coins}
+        onChange={(value) =>
+          updateMasterControl(
+            "coins",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Reviews"
+        icon="⭐"
+        value={master.reviews}
+        onChange={(value) =>
+          updateMasterControl(
+            "reviews",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Cancellation"
+        icon="❌"
+        value={
+          master.cancellation
+        }
+        onChange={(value) =>
+          updateMasterControl(
+            "cancellation",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Refunds"
+        icon="💸"
+        value={master.refunds}
+        onChange={(value) =>
+          updateMasterControl(
+            "refunds",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Seller System"
+        icon="🏪"
+        value={
+          master.sellerSystem
+        }
+        onChange={(value) =>
+          updateMasterControl(
+            "sellerSystem",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Cash on Delivery"
+        icon="💵"
+        value={master.cod}
+        onChange={(value) =>
+          updateMasterControl(
+            "cod",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="UPI"
+        icon="📲"
+        value={master.upi}
+        onChange={(value) =>
+          updateMasterControl(
+            "upi",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="AI Customer Care"
+        icon="🤖"
+        value={
+          master.aiCustomerCare
+        }
+        onChange={(value) =>
+          updateMasterControl(
+            "aiCustomerCare",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Standard Delivery"
+        icon="🚚"
+        value={
+          master.standardDelivery
+        }
+        onChange={(value) =>
+          updateMasterControl(
+            "standardDelivery",
+            value
+          )
+        }
+      />
+
+      <ControlRow
+        title="Fast Delivery"
+        icon="⚡"
+        value={
+          master.fastDelivery
+        }
+        onChange={(value) =>
+          updateMasterControl(
+            "fastDelivery",
+            value
+          )
+        }
+      />
+
+      <Text
+        style={
+          styles.sectionTitle
+        }
+      >
+        Add Product
+      </Text>
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Product name"
+        value={product.name}
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            name: value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.largeInput
+        }
+        placeholder="Description"
+        multiline
+        value={
+          product.description
+        }
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            description:
+              value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Price"
+        keyboardType="numeric"
+        value={product.price}
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            price: value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="MRP"
+        keyboardType="numeric"
+        value={product.mrp}
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            mrp: value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Discount % (optional)"
+        keyboardType="numeric"
+        value={
+          String(
+            product.discount ||
+              ""
+          )
+        }
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            discount: value,
+          })
+        }
+      />
+
+      <Text
+        style={
+          styles.optionTitle
+        }
+      >
+        Category
+      </Text>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={
+          false
+        }
+      >
+        {CATEGORIES.filter(
+          (x) =>
+            x.id !== "all"
+        ).map((item) => (
+          <Pressable
+            key={item.id}
+            style={[
+              styles.option,
+              product.category ===
+                item.id &&
+                styles.optionActive,
+            ]}
+            onPress={() =>
+              setProduct({
+                ...product,
+                category:
+                  item.id,
+              })
+            }
+          >
+            <Text>
+              {item.icon}{" "}
+              {item.name}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Stock quantity"
+        keyboardType="numeric"
+        value={
+          String(
+            product.stock
+          )
+        }
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            stock: value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Colors: Black, White, Red"
+        value={
+          product.colors
+        }
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            colors: value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Sizes: S, M, L, XL, XXL"
+        value={
+          product.sizes
+        }
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            sizes: value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Pickup location"
+        value={
+          product.pickupLocation
+        }
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            pickupLocation:
+              value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Seller name"
+        value={
+          product.sellerName
+        }
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            sellerName:
+              value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Your QR image URL (optional)"
+        value={
+          product.qrImage
+        }
+        onChangeText={(value) =>
+          setProduct({
+            ...product,
+            qrImage: value,
+          })
+        }
+      />
+
+      <ControlRow
+        title="Premium Luxury Product"
+        icon="👑"
+        value={
+          product.premiumOnly
+        }
+        onChange={(value) =>
+          setProduct({
+            ...product,
+            premiumOnly: value,
+          })
+        }
+      />
+
+      <Text
+        style={
+          styles.optionTitle
+        }
+      >
+        Product Photos
+      </Text>
+
+      <View
+        style={
+          styles.photoButtonRow
+        }
+      >
+        <Pressable
+          style={
+            styles.secondaryButton
+          }
+          onPress={
+            chooseImages
+          }
+        >
+          📱 Gallery
+        </Pressable>
+
+        <Pressable
+          style={
+            styles.secondaryButton
+          }
+          onPress={
+            takePhoto
+          }
+        >
+          📷 Camera
+        </Pressable>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={
+          false
+        }
+      >
+        {images.map(
+          (uri, index) => (
+            <Image
+              key={`${uri}-${index}`}
+              source={{
+                uri,
+              }}
+              style={
+                styles.adminPhoto
+              }
+            />
           )
         )}
       </ScrollView>
 
-      <BottomNav />
-    </SafeAreaView>
-  );
-
-  /* =======================================================
-     PROFILE
-     ======================================================= */
-
-  const ProfileScreen = () => (
-    <SafeAreaView
-      style={styles.container}
-    >
-      <Header />
-
-      <ScrollView
-        contentContainerStyle={
-          styles.content
+      <Pressable
+        style={
+          styles.primaryButton
+        }
+        onPress={
+          createProduct
         }
       >
         <Text
-          style={styles.h1}
+          style={
+            styles.primaryButtonText
+          }
         >
-          My Account
+          {busy
+            ? "Saving..."
+            : "Publish Product"}
         </Text>
+      </Pressable>
 
-        <View
-          style={styles.card}
-        >
-          <Text
-            style={styles.h2}
-          >
-            {profile.name ||
-              "Arishop User"}
-          </Text>
-
-          <Text
-            style={styles.muted}
-          >
-            {firebaseUser.email}
-          </Text>
-
-          <Text
-            style={styles.muted}
-          >
-            Role:{" "}
-            {profile.role}
-          </Text>
-
-          <Text
-            style={styles.muted}
-          >
-            Coins:{" "}
-            {profile.coins || 0}
-          </Text>
-        </View>
-
-        {profile.role ===
-          "admin" && (
-          <TouchableOpacity
-            style={styles.primary}
-            onPress={() =>
-              setScreen("admin")
-            }
-          >
-            <Text
-              style={
-                styles.primaryText
-              }
-            >
-              ⚙️ Admin Dashboard
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() =>
-            setScreen("orders")
-          }
-        >
-          <Text>
-            📦 My Orders
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() =>
-            Linking.openURL(
-              `tel:${SUPPORT_PHONE}`
-            )
-          }
-        >
-          <Text>
-            📞 Customer Support
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() =>
-            Alert.alert(
-              "Privacy Policy",
-              "Production launch से पहले official Privacy Policy URL जोड़ना जरूरी है।"
-            )
-          }
-        >
-          <Text>
-            🔒 Privacy Policy
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.option}
-          onPress={logout}
-        >
-          <Text
-            style={{
-              color: "#dc2626",
-              fontWeight: "800",
-            }}
-          >
-            Log Out
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      <BottomNav />
-    </SafeAreaView>
-  );
-
-  /* =======================================================
-     ADMIN
-     ======================================================= */
-
-  const AdminScreen = () => (
-    <SafeAreaView
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={
-          styles.content
+      <Text
+        style={
+          styles.sectionTitle
         }
       >
-        <TouchableOpacity
-          onPress={() =>
-            setScreen("home")
+        Add Your Advertisement
+      </Text>
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Ad title"
+        value={ad.title}
+        onChangeText={(value) =>
+          setAd({
+            ...ad,
+            title: value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Ad subtitle"
+        value={ad.subtitle}
+        onChangeText={(value) =>
+          setAd({
+            ...ad,
+            subtitle:
+              value,
+          })
+        }
+      />
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="Ad image URL"
+        value={ad.image}
+        onChangeText={(value) =>
+          setAd({
+            ...ad,
+            image: value,
+          })
+        }
+      />
+
+      <ControlRow
+        title="Advertisement Active"
+        icon="📢"
+        value={ad.active}
+        onChange={(value) =>
+          setAd({
+            ...ad,
+            active: value,
+          })
+        }
+      />
+
+      <Pressable
+        style={
+          styles.primaryButton
+        }
+        onPress={
+          createAd
+        }
+      >
+        <Text
+          style={
+            styles.primaryButtonText
           }
         >
-          <Text
-            style={styles.back}
-          >
-            ← Home
-          </Text>
-        </TouchableOpacity>
-
-        <Text
-          style={styles.h1}
-        >
-          Admin Dashboard
+          Publish Advertisement
         </Text>
+      </Pressable>
 
-        <View
-          style={styles.warning}
-        >
-          <Text
-            style={{
-              color: "#92400e",
-            }}
-          >
-            यह UI admin access दिखाती है, लेकिन production security के लिए Firestore Security Rules में admin authorization लगाना जरूरी है।
-          </Text>
-        </View>
+      <Text
+        style={
+          styles.sectionTitle
+        }
+      >
+        AI Customer Care Numbers
+      </Text>
 
-        <View
-          style={styles.card}
-        >
-          <Text
-            style={styles.h2}
-          >
-            Add Product
-          </Text>
+      <Text
+        style={
+          styles.descriptionBox
+        }
+      >
+        AI पहले customer की समस्या handle करेगा। Human support की जरूरत होने पर यहाँ दिए numbers में से number दिखाया जा सकता है।
+      </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Product name"
-            value={newProduct.name}
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                name: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Selling price"
-            keyboardType="numeric"
-            value={newProduct.price}
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                price: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="MRP"
-            keyboardType="numeric"
-            value={newProduct.mrp}
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                mrp: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Stock quantity"
-            keyboardType="numeric"
-            value={newProduct.stock}
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                stock: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Description"
-            multiline
-            value={
-              newProduct.description
-            }
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                description: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Colors: Black, White, Blue"
-            value={
-              newProduct.colors
-            }
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                colors: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Unavailable colors: Blue, Red"
-            value={
-              newProduct.unavailableColors
-            }
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                unavailableColors:
-                  value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Sizes: S, M, L, XL"
-            value={
-              newProduct.sizes
-            }
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                sizes: value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Pickup location"
-            value={
-              newProduct.pickupLocation
-            }
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                pickupLocation:
-                  value,
-              }))
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Seller name"
-            value={
-              newProduct.sellerName
-            }
-            onChangeText={(value) =>
-              setNewProduct((old) => ({
-                ...old,
-                sellerName: value,
-              }))
-            }
-          />
-
-          <Text
-            style={styles.label}
-          >
-            Category
-          </Text>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={
-              false
+      {supportNumbers.map(
+        (number) => (
+          <View
+            key={number}
+            style={
+              styles.supportNumberRow
             }
           >
-            {CATEGORIES.filter(
-              (item) =>
-                item.id !== "all"
-            ).map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.chip,
-                  newProduct.category ===
-                    item.id &&
-                    styles.chipActive,
-                ]}
-                onPress={() =>
-                  setNewProduct(
-                    (old) => ({
-                      ...old,
-                      category:
-                        item.id,
-                    })
-                  )
-                }
-              >
-                <Text
-                  style={
-                    newProduct.category ===
-                    item.id
-                      ? styles.chipActiveText
-                      : styles.chipText
-                  }
-                >
-                  {item.icon}{" "}
-                  {item.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+            <Text>
+              📞 {number}
+            </Text>
 
-          <TouchableOpacity
-            style={styles.secondary}
-            onPress={
-              takeProductPhoto
-            }
-          >
-            <Text
-              style={
-                styles.secondaryText
+            <Pressable
+              onPress={() =>
+                removeSupportNumber(
+                  number
+                )
               }
             >
-              📷 Camera से Photo
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondary}
-            onPress={
-              pickGalleryImages
-            }
-          >
-            <Text
-              style={
-                styles.secondaryText
-              }
-            >
-              🖼️ Gallery से Photos
-            </Text>
-          </TouchableOpacity>
-
-          {newImages.length >
-            0 && (
-            <Text
-              style={styles.muted}
-            >
-              {newImages.length} photos selected
-            </Text>
-          )}
-
-          <TouchableOpacity
-            style={styles.secondary}
-            onPress={
-              pickQRImage
-            }
-          >
-            <Text
-              style={
-                styles.secondaryText
-              }
-            >
-              🔳 Own UPI QR Photo
-            </Text>
-          </TouchableOpacity>
-
-          {newQR && (
-            <Text
-              style={styles.muted}
-            >
-              QR image selected
-            </Text>
-          )}
-
-          <TouchableOpacity
-            style={styles.primary}
-            onPress={addProduct}
-            disabled={busy}
-          >
-            {busy ? (
-              <ActivityIndicator
-                color="#fff"
-              />
-            ) : (
               <Text
                 style={
-                  styles.primaryText
+                  styles.deleteText
                 }
               >
-                Publish Product
+                Remove
               </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            </Pressable>
+          </View>
+        )
+      )}
+
+      <TextInput
+        style={
+          styles.input
+        }
+        placeholder="New support number"
+        keyboardType="phone-pad"
+        value={
+          supportInput
+        }
+        onChangeText={
+          setSupportInput
+        }
+      />
+
+      <Pressable
+        style={
+          styles.secondaryButton
+        }
+        onPress={
+          addSupportNumber
+        }
+      >
+        <Text>
+          + Add Support Number
+        </Text>
+      </Pressable>
+
+      <View
+        style={
+          styles.warningBox
+        }
+      >
+        <Text
+          style={
+            styles.warningTitle
+          }
+        >
+          Important
+        </Text>
+
+        <Text>
+          Master controls को Firestore Rules से भी secure करना जरूरी है। केवल UI में Admin button छिपाना security नहीं है।
+        </Text>
+      </View>
+    </ScrollView>
   );
+}
 
-  /* =======================================================
-     SCREEN ROUTER
-     ======================================================= */
+/* =========================================================
+   CONTROL ROW
+   ========================================================= */
 
-  if (screen === "product") {
-    return (
-      <ProductScreen />
-    );
-  }
+function ControlRow({
+  title,
+  icon,
+  value,
+  onChange,
+}) {
+  return (
+    <View
+      style={
+        styles.controlRow
+      }
+    >
+      <View
+        style={
+          styles.controlLeft
+        }
+      >
+        <Text
+          style={
+            styles.controlIcon
+          }
+        >
+          {icon}
+        </Text>
 
-  if (screen === "cart") {
-    return <CartScreen />;
-  }
+        <Text
+          style={
+            styles.controlTitle
+          }
+        >
+          {title}
+        </Text>
+      </View>
 
-  if (screen === "checkout") {
-    return (
-      <CheckoutScreen />
-    );
-  }
+      <Pressable
+        onPress={() =>
+          onChange(!value)
+        }
+        style={[
+          styles.switch,
+          value &&
+            styles.switchOn,
+        ]}
+      >
+        <View
+          style={[
+            styles.switchDot,
+            value &&
+              styles.switchDotOn,
+          ]}
+        />
 
-  if (screen === "orders") {
-    return <OrdersScreen />;
-  }
+        <Text
+          style={
+            styles.switchText
+          }
+        >
+          {value
+            ? "ON"
+            : "OFF"}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
 
-  if (screen === "profile") {
-    return (
-      <ProfileScreen />
-    );
-  }
+/* =========================================================
+   BOTTOM NAVIGATION
+   ========================================================= */
 
-  if (screen === "admin") {
-    return <AdminScreen />;
-  }
+function BottomNavigation({
+  screen,
+  setScreen,
+  cartCount,
+  isAdmin,
+}) {
+  return (
+    <View
+      style={
+        styles.bottomNav
+      }
+    >
+      <NavButton
+        icon="🏠"
+        label="Home"
+        active={
+          screen === "home"
+        }
+        onPress={() =>
+          setScreen("home")
+        }
+      />
 
-  return <HomeScreen />;
+      <NavButton
+        icon="🛒"
+        label={`Cart${
+          cartCount
+            ? ` (${cartCount})`
+            : ""
+        }`}
+        active={
+          screen === "cart"
+        }
+        onPress={() =>
+          setScreen("cart")
+        }
+      />
+
+      <NavButton
+        icon="📦"
+        label="Orders"
+        active={
+          screen === "orders"
+        }
+        onPress={() =>
+          setScreen("orders")
+        }
+      />
+
+      <NavButton
+        icon="👤"
+        label="Profile"
+        active={
+          screen === "profile"
+        }
+        onPress={() =>
+          setScreen("profile")
+        }
+      />
+
+      {isAdmin && (
+        <NavButton
+          icon="⚙️"
+          label="Master"
+          active={
+            screen === "admin"
+          }
+          onPress={() =>
+            setScreen("admin")
+          }
+        />
+      )}
+    </View>
+  );
+}
+
+function NavButton({
+  icon,
+  label,
+  active,
+  onPress,
+}) {
+  return (
+    <Pressable
+      style={[
+        styles.navButton,
+        active &&
+          styles.navButtonActive,
+      ]}
+      onPress={onPress}
+    >
+      <Text
+        style={
+          styles.navIcon
+        }
+      >
+        {icon}
+      </Text>
+
+      <Text
+        style={
+          styles.navLabel
+        }
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 /* =========================================================
    STYLES
    ========================================================= */
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f7fb",
-  },
-
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f5f7fb",
-    padding: 20,
-  },
-
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-  },
-
-  loginContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 20,
-  },
-
-  bigLogo: {
-    fontSize: 44,
-    fontWeight: "900",
-    textAlign: "center",
-    color: "#111827",
-  },
-
-  logo: {
-    fontSize: 27,
-    fontWeight: "900",
-    color: "#111827",
-  },
-
-  logoAccent: {
-    color: "#1463ff",
-  },
-
-  subtitle: {
-    textAlign: "center",
-    color: "#64748b",
-    marginTop: 5,
-    marginBottom: 25,
-  },
-
-  header: {
-    height: 62,
-    paddingHorizontal: 15,
-    backgroundColor: "#fff",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-
-  headerActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-
-  iconButton: {
-    backgroundColor: "#eef2ff",
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-
-  content: {
-    padding: 15,
-    paddingBottom: 100,
-  },
-
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-
-  h1: {
-    fontSize: 25,
-    fontWeight: "900",
-    color: "#111827",
-    marginBottom: 14,
-  },
-
-  h2: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#111827",
-    marginBottom: 10,
-  },
-
-  label: {
-    fontSize: 12,
-    color: "#475569",
-    marginTop: 8,
-    marginBottom: 5,
-  },
-
-  input: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    marginBottom: 9,
-    color: "#111827",
-  },
-
-  primary: {
-    backgroundColor: "#1463ff",
-    borderRadius: 11,
-    paddingVertical: 13,
-    alignItems: "center",
-    marginTop: 8,
-  },
-
-  primaryText: {
-    color: "#fff",
-    fontWeight: "800",
-  },
-
-  secondary: {
-    backgroundColor: "#fff",
-    borderRadius: 11,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#1463ff",
-    marginTop: 8,
-  },
-
-  secondaryText: {
-    color: "#1463ff",
-    fontWeight: "800",
-  },
-
-  switchButton: {
-    padding: 15,
-    alignItems: "center",
-  },
-
-  switchText: {
-    color: "#1463ff",
-    fontWeight: "700",
-  },
-
-  search: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    marginBottom: 12,
-  },
-
-  category: {
-    width: 82,
-    alignItems: "center",
-    marginRight: 8,
-    padding: 8,
-    borderRadius: 12,
-  },
-
-  categoryActive: {
-    backgroundColor: "#e8efff",
-  },
-
-  categoryIcon: {
-    fontSize: 28,
-    marginBottom: 4,
-  },
-
-  categoryText: {
-    fontSize: 11,
-    color: "#334155",
-    textAlign: "center",
-  },
-
-  hero: {
-    backgroundColor: "#1463ff",
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 18,
-  },
-
-  heroTitle: {
-    color: "#fff",
-    fontSize: 23,
-    fontWeight: "900",
-  },
-
-  heroSub: {
-    color: "#dbeafe",
-    marginTop: 5,
-  },
-
-  heroSmall: {
-    color: "#dbeafe",
-    fontSize: 12,
-    marginTop: 8,
-  },
-
-  sectionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-
-  muted: {
-    color: "#64748b",
-    fontSize: 12,
-    marginBottom: 4,
-  },
-
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-
-  productCard: {
-    width: "48.5%",
-    backgroundColor: "#fff",
-    borderRadius: 15,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    marginBottom: 12,
-    paddingBottom: 8,
-  },
-
-  productImage: {
-    width: "100%",
-    height: 145,
-    backgroundColor: "#e2e8f0",
-  },
-
-  placeholderImage: {
-    width: "100%",
-    height: 145,
-    backgroundColor: "#e2e8f0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  detailImage: {
-    width: "100%",
-    height: 320,
-    borderRadius: 16,
-    backgroundColor: "#e2e8f0",
-    marginBottom: 14,
-  },
-
-  detailPlaceholder: {
-    width: "100%",
-    height: 320,
-    borderRadius: 16,
-    backgroundColor: "#e2e8f0",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-
-  productTitle: {
-    color: "#111827",
-    fontWeight: "800",
-    fontSize: 14,
-    marginBottom: 4,
-  },
-
-  description: {
-    color: "#475569",
-    lineHeight: 21,
-    marginVertical: 12,
-  },
-
-  rating: {
-    color: "#d97706",
-    fontSize: 12,
-    marginVertical: 4,
-  },
-
-  price: {
-    color: "#1463ff",
-    fontSize: 18,
-    fontWeight: "900",
-    marginTop: 4,
-  },
-
-  mrp: {
-    color: "#94a3b8",
-    textDecorationLine: "line-through",
-    fontSize: 12,
-    marginTop: 2,
-  },
-
-  stock: {
-    color: "#16a34a",
-    fontSize: 11,
-    marginTop: 4,
-  },
-
-  chips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 12,
-  },
-
-  chip: {
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 9,
-    marginRight: 7,
-    marginBottom: 7,
-  },
-
-  chipActive: {
-    backgroundColor: "#1463ff",
-    borderColor: "#1463ff",
-  },
-
-  chipDisabled: {
-    backgroundColor: "#f1f5f9",
-    borderColor: "#cbd5e1",
-  },
-
-  chipText: {
-    color: "#334155",
-    fontWeight: "700",
-    fontSize: 12,
-  },
-
-  chipActiveText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 12,
-  },
-
-  option: {
-    backgroundColor: "#fff",
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    borderRadius: 11,
-    marginBottom: 8,
-  },
-
-  optionActive: {
-    backgroundColor: "#eff6ff",
-    borderColor: "#1463ff",
-  },
-
-  back: {
-    color: "#1463ff",
-    fontWeight: "800",
-    marginBottom: 12,
-  },
-
-  cartRow: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 10,
-    flexDirection: "row",
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-
-  cartImage: {
-    width: 82,
-    height: 82,
-    borderRadius: 10,
-    marginRight: 10,
-  },
-
-  cartPlaceholder: {
-    width: 82,
-    height: 82,
-    borderRadius: 10,
-    marginRight: 10,
-    backgroundColor: "#e2e8f0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  qtyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-
-  qtyButton: {
-    width: 32,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#eef2ff",
-    borderRadius: 7,
-  },
-
-  qtyText: {
-    marginHorizontal: 12,
-    fontWeight: "800",
-  },
-
-  totalBox: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 15,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 8,
-  },
-
-  warning: {
-    color: "#92400e",
-    backgroundColor: "#fffbeb",
-    borderWidth: 1,
-    borderColor: "#fde68a",
-    padding: 12,
-    borderRadius: 10,
-    marginVertical: 10,
-  },
-
-  disabled: {
-    backgroundColor: "#94a3b8",
-  },
-
-  empty: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 30,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-  },
-
-  emptyIcon: {
-    fontSize: 50,
-    marginBottom: 10,
-  },
-
-  emptyTitle: {
-    fontSize: 19,
-    fontWeight: "800",
-    marginBottom: 10,
-  },
-
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 66,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-    flexDirection: "row",
-  },
-
-  navItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+const styles =
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor:
+        "#F7F0E3",
+    },
+
+    app: {
+      flex: 1,
+    },
+
+    screen: {
+      flex: 1,
+      backgroundColor:
+        "#F7F0E3",
+    },
+
+    content: {
+      padding: 16,
+      paddingBottom: 40,
+    },
+
+    loading: {
+      flex: 1,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        "#F7F0E3",
+    },
+
+    loadingText: {
+      marginTop: 10,
+      fontSize: 16,
+    },
+
+    header: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "space-between",
+      marginBottom: 14,
+    },
+
+    brand: {
+      fontSize: 30,
+      fontWeight: "900",
+      color: "#222",
+    },
+
+    headerSubtitle: {
+      color: "#777",
+      marginTop: 2,
+    },
+
+    headerCart: {
+      fontSize: 28,
+      padding: 10,
+    },
+
+    search: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 13,
+      fontSize: 15,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+      marginBottom: 18,
+    },
+
+    adScroller: {
+      marginBottom: 18,
+    },
+
+    adCard: {
+      width: 320,
+      height: 155,
+      borderRadius: 18,
+      backgroundColor:
+        "#FFFFFF",
+      overflow: "hidden",
+      marginRight: 12,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    adImage: {
+      width: "100%",
+      height: "100%",
+      position:
+        "absolute",
+    },
+
+    adImagePlaceholder: {
+      width: "100%",
+      height: "100%",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        "#E9DDCB",
+    },
+
+    adEmoji: {
+      fontSize: 50,
+    },
+
+    adTextBox: {
+      position:
+        "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      padding: 14,
+      backgroundColor:
+        "rgba(0,0,0,0.55)",
+    },
+
+    adTitle: {
+      color: "#FFFFFF",
+      fontSize: 20,
+      fontWeight: "800",
+    },
+
+    adSubtitle: {
+      color: "#FFFFFF",
+      marginTop: 3,
+    },
+
+    sectionTitle: {
+      fontSize: 21,
+      fontWeight: "800",
+      marginTop: 8,
+      marginBottom: 12,
+      color: "#262626",
+    },
+
+    categoryButton: {
+      minWidth: 76,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 14,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      marginRight: 9,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    categoryButtonActive: {
+      backgroundColor:
+        "#E8D2B3",
+      borderColor:
+        "#C79B64",
+    },
+
+    categoryIcon: {
+      fontSize: 24,
+      marginBottom: 4,
+    },
+
+    categoryName: {
+      fontSize: 12,
+      fontWeight: "700",
+    },
+
+    specialRow: {
+      flexDirection:
+        "row",
+      gap: 10,
+      marginTop: 20,
+    },
+
+    specialCard: {
+      flex: 1,
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    specialEmoji: {
+      fontSize: 30,
+      marginBottom: 7,
+    },
+
+    specialTitle: {
+      fontSize: 15,
+      fontWeight: "800",
+    },
+
+    specialSmall: {
+      fontSize: 11,
+      color: "#666",
+      marginTop: 5,
+    },
+
+    productGrid: {
+      flexDirection:
+        "row",
+      flexWrap:
+        "wrap",
+      justifyContent:
+        "space-between",
+    },
+
+    productCard: {
+      width: "48%",
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 16,
+      marginBottom: 14,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    productImage: {
+      width: "100%",
+      height: 170,
+      backgroundColor:
+        "#EDE5D9",
+    },
+
+    productPlaceholder: {
+      width: "100%",
+      height: 170,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        "#EDE5D9",
+    },
+
+    productPlaceholderEmoji: {
+      fontSize: 45,
+    },
+
+    productInfo: {
+      padding: 10,
+    },
+
+    productName: {
+      fontSize: 14,
+      fontWeight: "700",
+      minHeight: 38,
+    },
+
+    priceRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      marginTop: 6,
+      gap: 7,
+    },
+
+    price: {
+      fontSize: 18,
+      fontWeight: "900",
+    },
+
+    mrp: {
+      textDecorationLine:
+        "line-through",
+      color: "#888",
+      fontSize: 12,
+    },
+
+    discount: {
+      marginTop: 3,
+      fontSize: 12,
+      fontWeight: "800",
+    },
+
+    stock: {
+      marginTop: 5,
+      fontSize: 11,
+      color: "#555",
+    },
+
+    backButton: {
+      alignSelf:
+        "flex-start",
+      paddingVertical: 8,
+      marginBottom: 10,
+      fontWeight: "700",
+    },
+
+    pageTitle: {
+      fontSize: 27,
+      fontWeight: "900",
+      marginBottom: 18,
+    },
+
+    detailImageBox: {
+      width: 340,
+      height: 340,
+      backgroundColor:
+        "#EDE5D9",
+      borderRadius: 18,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginRight: 12,
+      overflow: "hidden",
+    },
+
+    detailImage: {
+      width: "100%",
+      height: "100%",
+    },
+
+    detailPlaceholder: {
+      fontSize: 80,
+    },
+
+    detailTitle: {
+      fontSize: 27,
+      fontWeight: "900",
+      marginTop: 18,
+    },
+
+    detailDescription: {
+      fontSize: 15,
+      color: "#555",
+      lineHeight: 22,
+      marginTop: 8,
+    },
+
+    detailPriceRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      gap: 10,
+      marginTop: 14,
+    },
+
+    detailPrice: {
+      fontSize: 28,
+      fontWeight: "900",
+    },
+
+    detailMrp: {
+      textDecorationLine:
+        "line-through",
+      color: "#888",
+      fontSize: 16,
+    },
+
+    optionTitle: {
+      fontSize: 17,
+      fontWeight: "800",
+      marginTop: 18,
+      marginBottom: 9,
+    },
+
+    optionRow: {
+      flexDirection:
+        "row",
+      flexWrap:
+        "wrap",
+      gap: 8,
+    },
+
+    option: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor:
+        "#FFFFFF",
+      borderWidth: 1,
+      borderColor:
+        "#D8CBB9",
+      marginRight: 7,
+      marginBottom: 7,
+    },
+
+    optionActive: {
+      backgroundColor:
+        "#E8D2B3",
+      borderColor:
+        "#B9874E",
+    },
+
+    quantityRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      gap: 18,
+    },
+
+    quantityButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        "#FFFFFF",
+      borderWidth: 1,
+      borderColor:
+        "#D8CBB9",
+      fontSize: 24,
+    },
+
+    quantityText: {
+      fontSize: 18,
+      fontWeight: "800",
+    },
+
+    deliveryInfo: {
+      backgroundColor:
+        "#FFFFFF",
+      padding: 15,
+      borderRadius: 15,
+      marginTop: 18,
+      gap: 7,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    primaryButton: {
+      backgroundColor:
+        "#222222",
+      paddingVertical: 15,
+      borderRadius: 13,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginTop: 18,
+    },
+
+    primaryButtonText: {
+      color: "#FFFFFF",
+      fontWeight: "900",
+      fontSize: 16,
+    },
+
+    disabledButton: {
+      opacity: 0.5,
+    },
+
+    secondaryButton: {
+      backgroundColor:
+        "#FFFFFF",
+      paddingVertical: 13,
+      paddingHorizontal: 15,
+      borderRadius: 12,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor:
+        "#D8CBB9",
+    },
+
+    cartItem: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#FFFFFF",
+      padding: 12,
+      borderRadius: 14,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    cartImage: {
+      width: 72,
+      height: 72,
+      borderRadius: 10,
+    },
+
+    cartImagePlaceholder: {
+      width: 72,
+      height: 72,
+      borderRadius: 10,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        "#EDE5D9",
+      fontSize: 30,
+    },
+
+    cartMiddle: {
+      flex: 1,
+      paddingHorizontal: 10,
+    },
+
+    cartName: {
+      fontWeight: "800",
+      marginBottom: 4,
+    },
+
+    cartQuantity: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      gap: 15,
+      marginTop: 7,
+    },
+
+    deleteText: {
+      fontWeight: "800",
+    },
+
+    totalBox: {
+      flexDirection:
+        "row",
+      justifyContent:
+        "space-between",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#FFFFFF",
+      padding: 16,
+      borderRadius: 14,
+      marginTop: 15,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    totalLabel: {
+      fontSize: 17,
+      fontWeight: "700",
+    },
+
+    totalValue: {
+      fontSize: 22,
+      fontWeight: "900",
+    },
+
+    largeInput: {
+      backgroundColor:
+        "#FFFFFF",
+      borderWidth: 1,
+      borderColor:
+        "#D8CBB9",
+      borderRadius: 12,
+      padding: 14,
+      minHeight: 110,
+      textAlignVertical:
+        "top",
+      fontSize: 15,
+    },
+
+    input: {
+      backgroundColor:
+        "#FFFFFF",
+      borderWidth: 1,
+      borderColor:
+        "#D8CBB9",
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      marginBottom: 9,
+    },
+
+    selectRow: {
+      flexDirection:
+        "row",
+      justifyContent:
+        "space-between",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#FFFFFF",
+      padding: 15,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor:
+        "#D8CBB9",
+      marginBottom: 9,
+    },
+
+    selectActive: {
+      backgroundColor:
+        "#E8D2B3",
+      borderColor:
+        "#B9874E",
+    },
+
+    orderCard: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 16,
+      padding: 15,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+      gap: 6,
+    },
+
+    orderId: {
+      fontWeight: "900",
+      fontSize: 16,
+    },
+
+    orderAmount: {
+      fontSize: 21,
+      fontWeight: "900",
+      marginTop: 4,
+    },
+
+    warningText: {
+      fontWeight: "800",
+      marginTop: 5,
+    },
+
+    profileCard: {
+      backgroundColor:
+        "#FFFFFF",
+      padding: 20,
+      borderRadius: 18,
+      alignItems:
+        "center",
+      marginBottom: 15,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    profileAvatar: {
+      fontSize: 55,
+    },
+
+    profileEmail: {
+      fontSize: 16,
+      fontWeight: "800",
+      marginVertical: 7,
+    },
+
+    profileStats: {
+      flexDirection:
+        "row",
+      gap: 10,
+      marginTop: 15,
+    },
+
+    statCard: {
+      flex: 1,
+      backgroundColor:
+        "#FFFFFF",
+      padding: 14,
+      borderRadius: 14,
+      alignItems:
+        "center",
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    statEmoji: {
+      fontSize: 28,
+    },
+
+    statValue: {
+      fontSize: 18,
+      fontWeight: "900",
+      marginTop: 4,
+    },
+
+    menuButton: {
+      backgroundColor:
+        "#FFFFFF",
+      padding: 16,
+      borderRadius: 13,
+      marginTop: 10,
+      fontSize: 16,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    adminButton: {
+      backgroundColor:
+        "#E7D0AA",
+      padding: 17,
+      borderRadius: 13,
+      marginTop: 15,
+      fontWeight: "900",
+    },
+
+    logoutButton: {
+      backgroundColor:
+        "#FFFFFF",
+      padding: 16,
+      borderRadius: 13,
+      marginTop: 20,
+      borderWidth: 1,
+      borderColor:
+        "#CFC1AE",
+      alignItems:
+        "center",
+    },
+
+    premiumLock: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 20,
+      padding: 30,
+      alignItems:
+        "center",
+      borderWidth: 1,
+      borderColor:
+        "#D8CBB9",
+    },
+
+    premiumLockEmoji: {
+      fontSize: 65,
+    },
+
+    premiumLockTitle: {
+      fontSize: 24,
+      fontWeight: "900",
+      marginTop: 10,
+    },
+
+    premiumLockText: {
+      textAlign:
+        "center",
+      marginTop: 10,
+      color: "#666",
+      lineHeight: 21,
+    },
+
+    customerCard: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 16,
+      padding: 14,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    rank: {
+      width: 40,
+      fontSize: 18,
+      fontWeight: "900",
+    },
+
+    customerInfo: {
+      flex: 1,
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+    },
+
+    customerPhoto: {
+      width: 55,
+      height: 55,
+      borderRadius: 30,
+      marginRight: 12,
+    },
+
+    customerPhotoPlaceholder: {
+      width: 55,
+      height: 55,
+      borderRadius: 30,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        "#EDE5D9",
+      fontSize: 25,
+      marginRight: 12,
+    },
+
+    customerName: {
+      fontSize: 16,
+      fontWeight: "800",
+    },
+
+    descriptionBox: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 14,
+      padding: 15,
+      lineHeight: 21,
+      marginBottom: 15,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    supportBox: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 16,
+      padding: 18,
+      marginTop: 18,
+      borderWidth: 1,
+      borderColor:
+        "#D8CBB9",
+    },
+
+    supportTitle: {
+      fontSize: 18,
+      fontWeight: "900",
+      marginBottom: 8,
+    },
+
+    supportNumber: {
+      fontSize: 22,
+      fontWeight: "900",
+    },
+
+    adminTitle: {
+      fontSize: 29,
+      fontWeight: "900",
+      marginBottom: 8,
+    },
+
+    controlRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "space-between",
+      backgroundColor:
+        "#FFFFFF",
+      padding: 14,
+      borderRadius: 13,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    controlLeft: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      flex: 1,
+    },
+
+    controlIcon: {
+      fontSize: 23,
+      marginRight: 10,
+    },
+
+    controlTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+    },
+
+    switch: {
+      minWidth: 74,
+      height: 36,
+      borderRadius: 20,
+      backgroundColor:
+        "#D7D0C6",
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      paddingHorizontal: 6,
+      justifyContent:
+        "space-between",
+    },
+
+    switchOn: {
+      backgroundColor:
+        "#C4A36F",
+    },
+
+    switchDot: {
+      width: 25,
+      height: 25,
+      borderRadius: 13,
+      backgroundColor:
+        "#FFFFFF",
+    },
+
+    switchDotOn: {
+      marginLeft: 37,
+    },
+
+    switchText: {
+      fontSize: 10,
+      fontWeight: "900",
+    },
+
+    photoButtonRow: {
+      flexDirection:
+        "row",
+      gap: 8,
+      marginBottom: 10,
+    },
+
+    adminPhoto: {
+      width: 90,
+      height: 90,
+      borderRadius: 12,
+      marginRight: 8,
+      backgroundColor:
+        "#EDE5D9",
+    },
+
+    supportNumberRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "space-between",
+      backgroundColor:
+        "#FFFFFF",
+      padding: 14,
+      borderRadius: 12,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    warningBox: {
+      backgroundColor:
+        "#FFF1D6",
+      padding: 15,
+      borderRadius: 14,
+      marginTop: 20,
+      borderWidth: 1,
+      borderColor:
+        "#E5C88F",
+    },
+
+    warningTitle: {
+      fontWeight: "900",
+      marginBottom: 5,
+    },
+
+    emptyBox: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 18,
+      padding: 30,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      marginTop: 15,
+      borderWidth: 1,
+      borderColor:
+        "#E3D8C8",
+    },
+
+    emptyEmoji: {
+      fontSize: 55,
+      marginBottom: 10,
+    },
+
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: "800",
+    },
+
+    emptyText: {
+      color: "#777",
+      marginTop: 5,
+    },
+
+    bottomNav: {
+      height: 68,
+      backgroundColor:
+        "#FFFFFF",
+      borderTopWidth: 1,
+      borderTopColor:
+        "#DED3C4",
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "space-around",
+    },
+
+    navButton: {
+      flex: 1,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      height: "100%",
+    },
+
+    navButtonActive: {
+      backgroundColor:
+        "#F1E5D4",
+    },
+
+    navIcon: {
+      fontSize: 21,
+    },
+
+    navLabel: {
+      fontSize: 10,
+      fontWeight: "700",
+      marginTop: 2,
+    },
+  });
