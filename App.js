@@ -1840,6 +1840,7 @@ export default function App() {
                 setScreen("profile")
               }
               busy={busy}
+         />
             )}
       </View>
 
